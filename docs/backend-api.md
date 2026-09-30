@@ -1,0 +1,206 @@
+# Backend API reference
+
+This page lists every HTTP endpoint of the Cloudflare Worker, with its request and response shapes and error codes, and every environment variable and secret it needs. The router is `fetch()` in [`backend/src/index.ts`](../backend/src/index.ts), and the JSON API is `api()` in [`backend/src/api.ts`](../backend/src/api.ts).
+
+## Request routing
+
+`fetch()` handles each request in this order:
+
+1. If the path is `/about`, `/privacy` or `/terms`, it returns a static HTML page with no auth (`information()` in [`information.ts`](../backend/src/information.ts)). Google's OAuth consent screen links to these pages.
+2. If `Content-Length` is over 32,000, it returns **413**.
+3. If the path is `/telegram/webhook`, it uses the Telegram handler (see below).
+4. Everything else goes to `api()`. The **Bearer token check happens first**, so any path without a valid token gets **401**, even one that doesn't exist.
+5. Any unexpected exception becomes **503** `{"error":"Service temporarily unavailable"}`. **Nothing is logged**, so to debug a 503 you have to reproduce it locally or add temporary logging.
+
+Every JSON response has `Cache-Control: no-store`.
+
+## Authentication
+
+| Endpoint group | Requirement |
+|---|---|
+| `/api/*` | Header `Authorization: Bearer <BACKEND_TOKEN>`, compared in constant time by `equalSecret()` in [`domain.ts`](../backend/src/domain.ts). If the token is missing or wrong, the response is 401. |
+| `/telegram/webhook` | Header `X-Telegram-Bot-Api-Secret-Token: <TELEGRAM_WEBHOOK_SECRET>`, otherwise 401. The update must also come from the owner's private chat (`ownerUpdate()`), otherwise 403. |
+| `/about`, `/privacy`, `/terms` | None. |
+
+The public website never exposes the token. Its proxy adds the header on the server (see [frontend.md](frontend.md)).
+
+## `GET /api/expenses`: list transactions
+
+Returns the newest transactions first, ordered by `occurred_at` (or `received_at` for review items), then by `id`. Dismissed rows are never returned.
+
+**Query parameters** (all optional, parsed by `filters()`):
+
+| Param | Rule | Effect |
+|---|---|---|
+| `q` | ≤ 200 characters | Case-insensitive `LIKE` search on merchant or description. `%` and `_` are escaped. |
+| `category` | An expense category or an income category | Matches `COALESCE(income_category, category)`. |
+| `direction` | `expense` or `income` | Keeps only rows with that direction. |
+| `needsDetails` | `true` | Uses the `NEEDS_DETAILS` condition: a review item, an empty description, or a missing category. |
+| `from` | `YYYY-MM-DD` (Tashkent day) | Includes rows from that day's local 00:00 onward. |
+| `to` | `YYYY-MM-DD` (Tashkent day) | Includes rows up to the end of that day. `from` must not be later than `to`. |
+| `offset` | Integer with 1–7 digits | Pagination offset. |
+
+**Response 200:**
+
+```json
+{
+  "expenses": [
+    {
+      "id": "…uuid…", "source": "email", "source_message_id": "…", "manual_request": null,
+      "received_at": 1790000000000, "occurred_at": "2026-09-22T14:44:00.000Z",
+      "merchant": "SAMPLE TAXI", "card_suffix": "1234", "amount_minor": 3050000, "currency": "UZS",
+      "direction": "expense", "category": "Transport", "income_category": null,
+      "description": "Airport", "review_reason": null, "dismissed": 0, "version": 3
+    }
+  ],
+  "nextOffset": 50
+}
+```
+
+The endpoint returns 50 rows per page. When there are more rows, `nextOffset` is the next offset to request; otherwise it is `null`. The query fetches 51 rows to find out whether another page exists.
+
+**Errors:** **400** `Invalid filters` for any bad filter value, and **400** `Invalid offset`.
+
+## `GET /api/totals`: sums per currency
+
+It uses the same filters as `/api/expenses` (but ignores `offset`), leaves out review items, and sums every matching row with BigInt:
+
+```json
+[{ "currency": "UZS", "amount_minor": "3050000", "income_minor": "0", "net_minor": "-3050000" }]
+```
+
+`amount_minor` is **spending**. The field name is historical. All three values are decimal strings, so exact sums survive JSON (see [data-model.md](data-model.md#money)).
+
+## `GET /api/insights?month=YYYY-MM`: data for the Month view
+
+`month` defaults to the current Tashkent month. It leaves out dismissed rows and review items:
+
+```json
+{
+  "month": "2026-09",
+  "currencies": [{
+    "currency": "UZS",
+    "spending_minor": "…", "income_minor": "…", "net_minor": "…",
+    "days":       [{ "date": "2026-09-22", "spending_minor": "…", "count": 2 }],
+    "categories": [{ "category": "Food",   "spending_minor": "…", "count": 5 }]
+  }]
+}
+```
+
+- `days` and `categories` count **spending only**. Days are Tashkent calendar days and are sorted by date. Categories are sorted from the largest amount down, and an uncategorised expense has `category: null`.
+- Rows are read in pages of 1000 using keyset pagination by `id`, so a large month never loads all at once.
+- **400** `Invalid month`.
+
+## `GET /api/health`: status for the dashboard footer
+
+```json
+{
+  "sync": { "activated_at": 1790000000000, "last_success": 1790000300000, "error": null },
+  "notifications": { "pending": 0, "failed": 0 }
+}
+```
+
+- `sync` is `null` before activation.
+- `pending` counts unsent outbox rows. `failed` counts unsent rows that already have an error.
+- `error` is one of the Gmail codes described in [transaction-lifecycle.md](transaction-lifecycle.md#2-polling-gmail-pollgmail-in-gmailts).
+
+## `POST /api/activate`: start importing email
+
+It creates the `sync_state` row with `activated_at = cursor_at = now` if the row doesn't exist, and returns `{ "activated_at": … }`. Repeating it is harmless, because the first boundary is kept. This endpoint is **not reachable through the website**, so call it with `node scripts/integrations.mjs activate`.
+
+## `POST /api/expenses`: create a manual transaction
+
+**Body** (at most 8000 UTF-8 bytes, otherwise **413**):
+
+```json
+{
+  "id": "0b7a…-lowercase-uuid",
+  "direction": "expense",
+  "merchant": "Corner shop",
+  "amount": "12500",
+  "currency": "UZS",
+  "local_time": "30.09.26 13:05",
+  "category": "Groceries",
+  "income_category": null,
+  "description": "Bread and milk",
+  "card_suffix": ""
+}
+```
+
+Every field is checked by `manualDetails()` in [`manual.ts`](../backend/src/manual.ts):
+
+| Field | Rule |
+|---|---|
+| `id` | A lowercase UUID chosen by the client. It is both the idempotency key and the new row's `id`. |
+| `direction` | `expense` or `income`. |
+| `merchant` | 1–250 characters after trimming. |
+| `amount` | `^\d+(\.\d{1,2})?$`, greater than 0, and at most 2⁵³−1 minor units. |
+| `currency` | `UZS`, `USD`, `EUR` or `RUB`. |
+| `local_time` | `dd.mm.yy HH:MM[:SS]` in Tashkent time. It must be a real date and not in the future. The two-digit year allows 2000–2099. |
+| `category` or `income_category` | Required, and it must match the direction. The other one is stored as null. |
+| `description` | 1–500 characters. It is **required** for manual rows. |
+| `card_suffix` | Optional, 4 digits. |
+
+**Responses:**
+
+| Status | When |
+|---|---|
+| **201** + row | Created. |
+| **200** + row | This `id` already exists with **identical** validated details, so it is a retry and nothing changes. |
+| **409** | This `id` already exists with different details, or it belongs to an email row. |
+| **400** | Invalid JSON or a validation error. The message can be shown to the user as-is. |
+
+The details are compared against the **original** snapshot in `manual_request`. That snapshot is not updated by PATCH, so replaying the original create after an edit still returns 200 with the *edited* row.
+
+## `PATCH /api/expenses/:id`: edit a transaction
+
+Every PATCH must include the integer `version` the client last read. If the row changed since then, the response is **409**, and the client should reload. On success it returns the updated row with `version + 1`. It returns **404** if the id doesn't exist, and **400** for a bad body or when no changes were sent.
+
+What the body can contain depends on `source`:
+
+**Manual rows** (`source: "manual"`): the PATCH is a **full replacement**. Send the same fields as for create except `id`. They are checked by `manualDetails()` again.
+
+**Email rows** (`source: "email"`): the PATCH is partial. Send any of these:
+
+| Field | Rule |
+|---|---|
+| `category` | An expense category or `null`. The row must be `direction = expense`. |
+| `income_category` | An income category or `null`. The row must be `direction = income`. |
+| `description` | A string of at most 500 characters. It is trimmed, and it may be empty. |
+| `dismiss: true` | Review items only. Sets `dismissed = 1`, which hides the row. |
+| `resolve: { merchant, card_suffix, currency, amount, local_time, direction? }` | Review items only. Fills in the transaction fields and clears `review_reason`, so the row starts counting in totals. `amount` must have exactly 2 decimals, and `local_time` must be `dd.mm.yy HH:MM`. `direction` defaults to `expense`. |
+
+Parsed email fields such as amount or merchant **cannot** be edited on a normal email row. Only the owner's details can be changed.
+
+Edits on the website don't send or delete Telegram messages. As a result, a row completed on the website leaves its Telegram prompt in the chat (see [operations.md](operations.md#known-limitations-and-sharp-edges)).
+
+## `POST /telegram/webhook`
+
+Telegram calls this endpoint for every button press and every message the owner sends to the bot.
+
+| Status | When |
+|---|---|
+| 405 | Not a POST. |
+| 401 | The secret header is wrong. |
+| 400 | Invalid JSON, or no integer `update_id`. |
+| 403 | Not the owner's private chat. |
+| 200 `{ok:true}` | Handled, including stale or ignored updates. |
+
+After handling the update, it starts `deliver()` in the background (`ctx.waitUntil`), so the next Telegram message goes out immediately instead of waiting for the cron. The update handling itself is described in [transaction-lifecycle.md](transaction-lifecycle.md#6-the-owner-answers-on-telegram-handleupdate-in-telegramts).
+
+## Environment, secrets and bindings
+
+The `Env` type is defined in [`domain.ts`](../backend/src/domain.ts), and the non-secret settings are in [`backend/wrangler.toml`](../backend/wrangler.toml).
+
+| Name | Kind | Purpose | Where it comes from |
+|---|---|---|---|
+| `DB` | D1 binding | The `expenses` database. | `[[d1_databases]]` in `wrangler.toml` |
+| `SITE_URL` | Plain var | The dashboard link in Telegram messages. | `[vars]` in `wrangler.toml` |
+| `BACKEND_TOKEN` | Secret | Bearer token for `/api/*`. It is shared with Vercel. | Generated by `scripts/google-oauth.mjs` |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Secret | The Google OAuth Desktop client. | The Google Cloud client JSON, via `google-oauth.mjs` |
+| `GOOGLE_REFRESH_TOKEN` | Secret | Read-only Gmail access. | `google-oauth.mjs` browser consent |
+| `TELEGRAM_BOT_TOKEN` | Secret | The bot's API token. | BotFather |
+| `TELEGRAM_WEBHOOK_SECRET` | Secret | Checks that webhook calls come from Telegram. | Generated by `google-oauth.mjs` |
+| `TELEGRAM_OWNER_ID` | Secret | The only chat and user allowed, as a numeric string. | `node scripts/integrations.mjs owner` |
+
+All seven secrets are kept locally in the git-ignored `.env.production.json`. They are uploaded with `node scripts/deploy-secrets.mjs` (see [deployment.md](deployment.md#secrets)). For local `npm run dev`, put them in `backend/.dev.vars` (copy [`backend/.dev.vars.example`](../backend/.dev.vars.example)).

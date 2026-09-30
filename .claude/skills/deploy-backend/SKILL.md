@@ -1,6 +1,6 @@
 ---
 name: deploy-backend
-description: Deploy the expense tracker backend (the Cloudflare Worker in `backend/`) to production, check for pending D1 migrations, verify it anonymously, and record the deploy in docs/SETUP.md. Use when asked to deploy, publish, or redeploy the backend/worker/API.
+description: Deploy the expense tracker backend (the Cloudflare Worker in `backend/`) to production, check for pending D1 migrations, verify it anonymously, and record the deploy in docs/history.md. Use when asked to deploy, publish, or redeploy the backend/worker/API.
 ---
 
 # Deploy the backend to Cloudflare
@@ -31,7 +31,7 @@ Run everything from the repo root. Do not run the test and build steps in parall
    - 200: `/about`, `/privacy`, `/terms`
    - Also check the dashboard still reads through the backend: the Vercel `/api/health` should be 200 (https://personal-expenses-liard-chi.vercel.app/api/health).
    - Optionally review logs briefly with `npx wrangler tail --config backend/wrangler.toml` after the next five-minute cron tick if something looks off.
-5. **Record it.** Append a short dated section to `docs/SETUP.md` (see "Backend redeploy — 30 September 2026" for the format): version ID, validation results, whether migrations were applied, smoke results, and that secrets, activation, and history were untouched. Update `README.md` only if what is implemented or how to run it changed.
+5. **Record it.** Append a short dated section to the end of `docs/history.md` (see "Backend redeploy — 30 September 2026" for the format): version ID, validation results, whether migrations were applied, smoke results, and that secrets, activation, and history were untouched. Update `README.md` only if what is implemented or how to run it changed.
 6. **Report** in one or two sentences: the version ID, what was verified, and anything not verified.
 
 ## If something fails
@@ -39,4 +39,4 @@ Run everything from the repo root. Do not run the test and build steps in parall
 - Test, typecheck, or dry-run failure: fix or report; do not deploy around it.
 - Deploy fails on auth: re-run `npx wrangler login`; do not change the account or `database_id` in `wrangler.toml` without asking.
 - Smoke test unexpected (`/api/expenses` not 401, `/about` not 200, dashboard health not 200): report it immediately. Roll back with `npx wrangler rollback --config backend/wrangler.toml` (previous version) after telling the user; D1 migrations are not rolled back by this, which is why they must be additive.
-- Deployment status belongs in README.md and docs/SETUP.md, not in this skill.
+- Deployment records belong in docs/history.md, not in this skill. Update the explanatory pages in docs/ (for example deployment.md or operations.md) only if how the system works changed.

@@ -10,4 +10,4 @@ Deploy this directory with Vercel CLI on a personal Hobby project, framework pre
 
 Set `BACKEND_URL` and sensitive `BACKEND_TOKEN` as production-only Vercel environment variables. Do not set production credentials in preview environments or commit credentials. Disable production deployment protection so visitors need no Vercel login. Administrative backend operations are not exposed by the proxy.
 
-The old Sites deployment was deleted on 30 September 2026. Its obsolete hosting manifest was removed. Deploy only to Vercel; use Vercel deployment history for rollback. See `../docs/SETUP.md` for deployment details.
+The old Sites deployment was deleted on 30 September 2026. Its obsolete hosting manifest was removed. Deploy only to Vercel; use Vercel deployment history for rollback. See [../docs/deployment.md](../docs/deployment.md) for deploy steps and [../docs/frontend.md](../docs/frontend.md) for how this directory works.

@@ -1,10 +1,10 @@
 # Personal expense tracker: Gmail → Telegram → website
 
-Agreed plan, 23 September 2026, updated 24 September 2026. The deployed tracker now uses the dedicated expense inbox. The owner-authorized database history reset and old Gmail grant revocation are complete. The current activation boundary is 2026-09-24T16:19:45.972Z (2026-09-24 21:19:45.972 Asia/Tashkent); earlier receipts are excluded. New-inbox scheduled sync and the empty private dashboard are verified. A naturally arriving transaction and reminder acceptance checks remain pending. See README.md and docs/SETUP.md.
+Agreed plan, 23 September 2026, updated 24 September 2026. The deployed tracker now uses the dedicated expense inbox. The owner-authorized database history reset and old Gmail grant revocation are complete. The current activation boundary is 2026-09-24T16:19:45.972Z (2026-09-24 21:19:45.972 Asia/Tashkent); earlier receipts are excluded. Later additions (income, Vercel website, Month view, manual transactions) are deployed; dated records are in docs/history.md. Live acceptance checks still pending are listed in next_steps.md.
 
 ## Summary
 
-Build a personal expense tracker for the owner’s existing Gmail account. Check for new UZCARD emails every five minutes, save each transaction, and send a Telegram notification asking for a category and short description.
+Build a personal expense tracker for the owner’s dedicated Gmail inbox. Check for new UZCARD emails every five minutes, save each transaction, and send a Telegram notification asking for a category and short description.
 
 Track only emails received after activation. At **8 pm Tashkent time**, send one reminder if any expenses still need details.
 
@@ -16,7 +16,7 @@ Track only emails received after activation. At **8 pm Tashkent time**, send one
 - An expense is complete when both category and description are supplied. Unfinished expenses remain saved and visible.
 - After Telegram classification completes, send a standalone receipt with amount, merchant, transaction time, category, description, and dashboard link. Only after successful receipt delivery, delete its category messages, description prompts, and the owner’s description replies. Persist cleanup retries independently from receipt delivery.
 - Keep at most the latest three completed receipts, also expiring them after 47 hours to stay within Telegram’s 48-hour deletion window. Never remove pending transaction prompts. Older messages Telegram refuses to delete may remain; stop retrying permanent deletion failures. Full history stays on the website.
-- The mobile-friendly website opens directly to the expense list, newest first. Include search, date/category filters, a “Needs details” filter, spending totals, and editing of category and description.
+- The mobile-friendly website opens directly to the expense list, newest first. Include search, date/category filters, a “Needs details” filter, spending totals, and editing of category and description. Later sections extend this with income and net cash flow, the Month view, and manual transactions.
 - Daily reminders contain the unfinished count and a link to the website; send nothing when the list is complete.
 
 ## Implementation
@@ -43,7 +43,7 @@ Track only emails received after activation. At **8 pm Tashkent time**, send one
 
 ## Setup and validation
 
-- The owner uses their existing Gmail account and configures UZCARD delivery. Google read-only authorization applies to the entire mailbox; ingestion selects only matching UZCARD emails received after activation.
+- The owner uses a dedicated Gmail inbox and configures UZCARD delivery to it. Google read-only authorization applies to the entire mailbox; ingestion selects only matching UZCARD emails received after activation.
 - Guide the owner through Google authorization, creating a Telegram bot with BotFather, starting its chat, and connecting cloud hosting. Store credentials as deployment secrets.
 - Configure Google OAuth for ongoing personal use rather than leaving it in Testing, where Gmail refresh tokens expire after seven days. Follow Google’s [OAuth documentation](https://developers.google.com/identity/protocols/oauth2).
 - Test the supplied bilingual email, HTML/plain-text variants, repeated polling, multiple transactions, malformed messages, and unsupported operations.
@@ -64,17 +64,17 @@ The owner explicitly approved switching to a dedicated Gmail inbox and deleting 
 
 Authorize and verify the new inbox with the existing OAuth client and only `gmail.readonly`. Pause all application processing with a temporary maintenance Worker, then drain earlier scheduled work before resetting. Atomically delete transactions (including income and reviews), notifications, Telegram message associations, locks, and old sync state. Preserve Telegram update deduplication. Keep existing Gmail emails and Telegram chat messages; stale Telegram interactions must not recreate history or affect new transactions. No export or additional transaction backup is created.
 
-Deploy the new refresh token, reset activation and cursor to one recorded UTC timestamp, and restore the normal Worker. Verify an empty dashboard and a successful new-inbox sync before revoking the old account's grant and removing obsolete local token copies. Retain the OAuth client, Telegram integration, dashboard credentials, database, and polling schedule. The application creates no Gmail watch or Pub/Sub subscription. Record execution results in `docs/SETUP.md`; synthetic tests must cover atomic rollback, reset retries, stale Telegram interactions, activation-boundary filtering, duplicate polling, and notification retries.
+Deploy the new refresh token, reset activation and cursor to one recorded UTC timestamp, and restore the normal Worker. Verify an empty dashboard and a successful new-inbox sync before revoking the old account's grant and removing obsolete local token copies. Retain the OAuth client, Telegram integration, dashboard credentials, database, and polling schedule. The application creates no Gmail watch or Pub/Sub subscription. Record execution results in `docs/history.md`; synthetic tests must cover atomic rollback, reset retries, stale Telegram interactions, activation-boundary filtering, duplicate polling, and notification retries.
 
 ## Ongoing defaults
 
-Single owner, one existing mailbox, all matching cards, English interface, and Tashkent timezone. Start with the categories above. Keep currencies separate in totals; no currency conversion, historical import, automatic categorization, or budgeting in the first version. Target notification delivery within five minutes of email arrival during normal service operation.
+Single owner, one dedicated mailbox, all matching cards, English interface, and Tashkent timezone. Start with the categories above. Keep currencies separate in totals; no currency conversion, historical import, automatic categorization, or budgeting in the first version. Target notification delivery within five minutes of email arrival during normal service operation.
 
 ## Vercel transition — 29 September 2026
 
 The owner approved public viewing and all existing dashboard edits without authentication. Use the existing HTML/JavaScript interface and a Node.js Vercel Function, deployed from `website` on a personal Hobby project with a `vercel.app` address. Keep production backend credentials in production server environment variables only. Preserve backend and webhook authentication, same-origin JSON writes, body limits, conflict handling, timeout and redirect protections, and uncached API responses.
 
-Preserve Cloudflare D1 history, activation, Gmail processing, and Telegram state. Validate anonymous reads and synthetic writes, rejected administrative routes, credential isolation, duplicate processing, retries, and reply associations. Smoke-test production reads before changing `SITE_URL` and Telegram profile links. The owner subsequently requested deletion of the old Sites deployment, completed and verified on 30 September 2026. Use Vercel deployment history for frontend rollback; do not recreate the deleted Site. No paid add-ons or custom domain. Deployment and cutover status belongs in README.md and docs/SETUP.md.
+Preserve Cloudflare D1 history, activation, Gmail processing, and Telegram state. Validate anonymous reads and synthetic writes, rejected administrative routes, credential isolation, duplicate processing, retries, and reply associations. Smoke-test production reads before changing `SITE_URL` and Telegram profile links. The owner subsequently requested deletion of the old Sites deployment, completed and verified on 30 September 2026. Use Vercel deployment history for frontend rollback; do not recreate the deleted Site. No paid add-ons or custom domain. Deployment and cutover status belongs in docs/history.md.
 
 ## Manual transactions — 30 September 2026
 
@@ -83,4 +83,4 @@ Preserve Cloudflare D1 history, activation, Gmail processing, and Telegram state
 - Allow backdating from 2000 onward, including before email activation, but reject future times. This does not authorize historical email ingestion or change the activation boundary. Include manual records in ledger filters, totals, and monthly insights. Label pre-activation history as potentially incomplete; exclude its spending and days from the tracked-day average.
 - Keep amounts in exact integer minor units and timestamps in UTC. Repeated submissions with the same request ID and normalized creation details return the existing record, even after later edits; different details for that ID conflict. A newly opened form represents a new transaction; no amount/date-based deduplication with email imports is attempted.
 - Preserve existing data, outbox jobs, Telegram associations, and source deduplication during migration. Keep anonymous dashboard creation under the existing public-write policy, same-origin JSON checks, body limits, and backend authentication.
-- Validate synthetic creation, income, backdating, exact amounts, required fields, duplicate/retried submissions, edit conflicts, migration preservation/rollback, access rejection, and existing ingestion/notification/reply behavior. Verify the form at mobile and desktop widths. Production deployment is separate from implementation and local verification.
+- Validate synthetic creation, income, backdating, exact amounts, required fields, duplicate/retried submissions, edit conflicts, migration preservation/rollback, access rejection, and existing ingestion/notification/reply behavior. Verify the form at mobile and desktop widths. Production deployment is separate from implementation and local verification; manual transactions were deployed on 30 September 2026.

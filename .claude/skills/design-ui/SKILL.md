@@ -78,7 +78,7 @@ node .claude/skills/design-ui/screenshot.mjs --out docs/screenshots/<YYYY-MM-DD>
 - **Names:** `<before|after>-<state>[-light]-<w>x<h>.png`.
 - **States:** `shots.default.json` covers ledger, more filters, Needs details, edit dialog, review item, empty state and the Month view. For a new view, pass `--spec` with your own shots (`hash`, `actions` with `click`, `fill`, `submit`, `waitFor`, `wait`, plus `fullPage`, `light`, `motion`, `sizes`), or `--only name,name` for a subset. Motion is reduced by default; set `"motion": true` on a shot that is about animation.
 - **Output:** each shot prints ok/FAIL with horizontal overflow in px and console errors. Exit code is non-zero on any failure. The script always kills Chrome and removes its temp profile.
-- **Not committed.** The project root is not a git repo and `website/` is a separate one. Leave screenshots uncommitted unless asked.
+- **Not committed.** The project root is a single git repo that includes `website/`. Leave screenshots uncommitted unless asked.
 
 ## Report back (concise)
 
