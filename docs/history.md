@@ -239,3 +239,10 @@ Synthetic checks also cover history-reset rollback and retries, stale Telegram i
 [PLAN.md](../PLAN.md) contains the agreed scope; [docs/SETUP.md](SETUP.md) contains deployment and live acceptance steps.
 
 [Future plans](../future-plans/README.md) collects unscheduled ideas, proposals, implementation tickets, and risks. These documents describe future work, not implemented features.
+
+
+## Daily Telegram summary deployment — 30 September 2026
+
+Deployed backend version `56e530da-4582-4b7e-863c-bd50af46f025`. Daily Telegram summaries now queue around 21:00 Asia/Tashkent on the existing five-minute schedule, showing today’s spending so far and expense count separately per currency, outstanding needs-details count across all dates when nonzero, and the dashboard link. Days with neither spending nor outstanding details are skipped. Manual spending is included; income, dismissed records, and unresolved reviews are excluded from spending. Delivery retries refresh the values and expire after the local date changes.
+
+All 52 synthetic tests and `npm run build` passed, including exact large totals, local-date boundaries, concurrent sends, retry refresh, stale jobs, duplicate ingestion, and reply associations. No migrations were pending or applied. Secrets, activation, stored transactions, Telegram associations, and the cron schedule were preserved; the website did not require redeployment. Anonymous smoke checks passed: backend `/api/expenses` 401, webhook GET 405, `/about`, `/privacy`, and `/terms` 200, and dashboard `/api/health` 200. No live transactions were edited or test Telegram messages sent. The naturally scheduled summary remains a live acceptance check.

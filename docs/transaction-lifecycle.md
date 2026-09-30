@@ -127,7 +127,7 @@ queueCleanup → drain(all kinds) → queueCleanup → drain(delete only)
 | `review` | "An UZCARD email needs review (<reason>). It is excluded from spending totals." plus the dashboard link | |
 | `prompt` | Summary plus "Reply to this message with a short description." as a `force_reply` | Skipped if the transaction is already complete. Records `kind='prompt'` |
 | `receipt` | "✓ Saved", summary, category · description, and the dashboard link. Removes the keyboard | Only if complete. Records `kind='receipt'` |
-| `reminder` | "N transactions still need details." plus the link | Sent only if the count is above 0 *and* the row belongs to today |
+| `reminder` | Today’s spending so far and expense count per currency, outstanding needs-details count when nonzero, and dashboard link | Sent if today has spending or outstanding details exist, and the row belongs to today |
 | `auth` | "Gmail authorization needs attention. Reconnect Google…" | |
 | `delete` | `deleteMessage` | See cleanup below |
 
@@ -158,9 +158,11 @@ Invalid or stale input, such as a tap on an old button or a reply to the wrong m
 
 Once a transaction is complete **and its receipt was delivered**, `delete:<message_id>` jobs are queued for the category message, the prompt and the owner's reply. Receipts themselves are deleted when they are older than 47 hours, or when they are not among the **3 newest receipts**. Telegram only lets bots delete messages younger than 48 hours. A message Telegram refuses to delete is marked `cleanup_status='unavailable'` and never retried. Pending transactions' prompts are never deleted.
 
-## 8. The 20:00 reminder: `reminder()` in [`telegram.ts`](../backend/src/telegram.ts)
+## 8. The 21:00 daily summary: `reminder()` in [`telegram.ts`](../backend/src/telegram.ts)
 
-During the 20:00–20:59 Tashkent hour, each cron tick tries `INSERT OR IGNORE` of outbox row `reminder:<YYYY-MM-DD>`, but only if some non-dismissed row still needs details. The ID guarantees at most one reminder per day. If the service is down for that entire hour, that day's reminder is skipped, not sent late.
+During the 21:00–21:59 Tashkent hour, each cron tick tries `INSERT OR IGNORE` of outbox row `reminder:<YYYY-MM-DD>` if today has spending or any non-dismissed transaction still needs details. The ID guarantees at most one job per day. Delivery and retries read current values; jobs expire after their local date changes. If the service is down for the entire scheduling hour, that day's summary is skipped.
+
+Spending uses transaction times from Tashkent midnight through message generation. Include email and manual expenses, even with missing details; exclude income, dismissed records, and unresolved reviews. Sum minor units using BigInt, with one amount and expense count per currency. The outstanding count covers all dates, income, and review items. When only outstanding details trigger delivery, show “No spending recorded today.” This change was deployed on 30 September 2026.
 
 ## 9. The dashboard
 
@@ -183,6 +185,6 @@ A transaction **needs details** (the `NEEDS_DETAILS` SQL in [`domain.ts`](../bac
 3. `saveManual()` in [`store.ts`](../backend/src/store.ts) runs `INSERT … ON CONFLICT(id) DO NOTHING` and stores a JSON snapshot of the validated request in `manual_request`.
    - A retried save with the same ID and the same details returns the existing row (200 instead of 201).
    - The same ID with different details returns **409**.
-4. Manual rows have `source='manual'` and no Gmail ID. They never trigger Telegram messages, and they are complete as soon as they are created.
+4. Manual rows have `source='manual'` and no Gmail ID. They never trigger per-transaction Telegram messages and are complete as soon as they are created; their spending contributes to the daily summary.
 
 Manual rows count in totals and insights like any other row. Rows dated before activation are shown with an "incomplete history" note and are left out of the Month view's daily average. Manual rows are never matched or merged with a later email for the same purchase.

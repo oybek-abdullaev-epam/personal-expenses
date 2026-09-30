@@ -6,7 +6,7 @@ Agreed plan, 23 September 2026, updated 24 September 2026. The deployed tracker 
 
 Build a personal expense tracker for the owner’s dedicated Gmail inbox. Check for new UZCARD emails every five minutes, save each transaction, and send a Telegram notification asking for a category and short description.
 
-Track only emails received after activation. At **8 pm Tashkent time**, send one reminder if any expenses still need details.
+Track only emails received after activation. At **21:00 Tashkent time**, send one daily spending summary, including any transactions still needing details. Skip days with neither spending nor outstanding details.
 
 ## User experience
 
@@ -17,7 +17,7 @@ Track only emails received after activation. At **8 pm Tashkent time**, send one
 - After Telegram classification completes, send a standalone receipt with amount, merchant, transaction time, category, description, and dashboard link. Only after successful receipt delivery, delete its category messages, description prompts, and the owner’s description replies. Persist cleanup retries independently from receipt delivery.
 - Keep at most the latest three completed receipts, also expiring them after 47 hours to stay within Telegram’s 48-hour deletion window. Never remove pending transaction prompts. Older messages Telegram refuses to delete may remain; stop retrying permanent deletion failures. Full history stays on the website.
 - The mobile-friendly website opens directly to the expense list, newest first. Include search, date/category filters, a “Needs details” filter, spending totals, and editing of category and description. Later sections extend this with income and net cash flow, the Month view, and manual transactions.
-- Daily reminders contain the unfinished count and a link to the website; send nothing when the list is complete.
+- Daily summaries show today’s spending so far and expense count separately per currency, plus the outstanding needs-details count across all dates when nonzero and a dashboard link. Include email and manual expenses with missing details; exclude income, dismissed records, and unresolved review items from spending. Use Tashkent transaction dates, local midnight through delivery, and exact minor-unit totals. Queue once during the 21:00 hour, refresh values on delivery/retry, and expire undelivered summaries after the local date changes.
 
 ## Implementation
 
@@ -79,8 +79,12 @@ Preserve Cloudflare D1 history, activation, Gmail processing, and Telegram state
 ## Manual transactions — 30 September 2026
 
 - Add spending and income from either dashboard view. Require merchant/sender, positive amount, supported currency (UZS default; USD/EUR/RUB also supported), Tashkent transaction time, a direction-specific category, and description. Card suffix is optional.
-- Mark entries as Manual, independently of Gmail message IDs. Save complete entries without Telegram prompts, receipts, or reminders. Allow all manual fields to be corrected using optimistic version checks.
+- Mark entries as Manual, independently of Gmail message IDs. Save complete entries without per-transaction Telegram prompts or receipts; include their spending in the daily summary. Allow all manual fields to be corrected using optimistic version checks.
 - Allow backdating from 2000 onward, including before email activation, but reject future times. This does not authorize historical email ingestion or change the activation boundary. Include manual records in ledger filters, totals, and monthly insights. Label pre-activation history as potentially incomplete; exclude its spending and days from the tracked-day average.
 - Keep amounts in exact integer minor units and timestamps in UTC. Repeated submissions with the same request ID and normalized creation details return the existing record, even after later edits; different details for that ID conflict. A newly opened form represents a new transaction; no amount/date-based deduplication with email imports is attempted.
 - Preserve existing data, outbox jobs, Telegram associations, and source deduplication during migration. Keep anonymous dashboard creation under the existing public-write policy, same-origin JSON checks, body limits, and backend authentication.
 - Validate synthetic creation, income, backdating, exact amounts, required fields, duplicate/retried submissions, edit conflicts, migration preservation/rollback, access rejection, and existing ingestion/notification/reply behavior. Verify the form at mobile and desktop widths. Production deployment is separate from implementation and local verification; manual transactions were deployed on 30 September 2026.
+
+## Daily Telegram summary — 30 September 2026
+
+Replace the 20:00 reminder with the 21:00 daily spending summary described above. Retain the existing reminder outbox kind, date-based deduplication, delivery claims, retries, and immediate review alerts. No migration or public API changes. Verify complete expenses, empty days, older unfinished transactions, timezone boundaries, manual entries, multiple currencies, exact large totals, edits before delivery, concurrent sends, retries, and stale jobs. Local implementation and validation passed; the backend summary was deployed on 30 September 2026.

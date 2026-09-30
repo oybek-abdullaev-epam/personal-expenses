@@ -184,18 +184,19 @@ test("category updates and crossed replies associate by message ID and deduplica
     2,
   );
 });
-test("reminders run once per Tashkent date, skip complete lists and expire stale sends", async (t) => {
+test("reminders run once per Tashkent date, skip empty days and expire stale sends", async (t) => {
+  const summaryTime = now + 3600000;
   const { env, sqlite } = setup();
   await seed(env);
-  await reminder(env, now - 3600000);
+  await reminder(env, summaryTime - 3600000);
   assert.equal(
     sqlite
       .prepare("SELECT COUNT(*) AS n FROM outbox WHERE kind='reminder'")
       .get()!.n,
     0,
   );
-  await reminder(env, now);
-  await reminder(env, now + 300000);
+  await reminder(env, summaryTime);
+  await reminder(env, summaryTime + 300000);
   assert.equal(
     sqlite
       .prepare("SELECT COUNT(*) AS n FROM outbox WHERE kind='reminder'")
@@ -207,11 +208,11 @@ test("reminders run once per Tashkent date, skip complete lists and expire stale
     texts.push(JSON.parse(String(opts!.body)).text);
     return tg(100 + texts.length);
   });
-  await deliver(env, now);
-  await deliver(env, now);
-  assert.equal(texts.filter((x) => x.includes("still need details")).length, 1);
+  await deliver(env, summaryTime);
+  await deliver(env, summaryTime);
+  assert.equal(texts.filter((x) => /still needs? details/.test(x)).length, 1);
   sqlite.exec("UPDATE expenses SET category='Food',description='Lunch'");
-  await reminder(env, now + 86400000);
+  await reminder(env, summaryTime + 86400000);
   assert.equal(
     sqlite
       .prepare("SELECT COUNT(*) AS n FROM outbox WHERE kind='reminder'")
@@ -537,20 +538,21 @@ test("aggregate money remains exact above the JavaScript safe integer limit", as
 });
 
 test("stale and no-longer-needed reminders do not send", async (t) => {
+  const summaryTime = now + 3600000;
   const { env, sqlite } = setup();
   await seed(env);
-  await reminder(env, now);
+  await reminder(env, summaryTime);
   sqlite.exec("UPDATE outbox SET sent_at=1 WHERE kind='expense'");
   let sends = 0;
   t.mock.method(globalThis, "fetch", async () => {
     sends++;
     return tg(1);
   });
-  await deliver(env, now + 86400000);
+  await deliver(env, summaryTime + 86400000);
   assert.equal(sends, 0);
-  await reminder(env, now + 86400000);
+  await reminder(env, summaryTime + 86400000);
   sqlite.exec("UPDATE expenses SET category='Other',description='Finished'");
-  await deliver(env, now + 86400000);
+  await deliver(env, summaryTime + 86400000);
   assert.equal(sends, 0);
 });
 
@@ -744,7 +746,7 @@ test("income retry, duplicate updates and crossed replies preserve associations"
       .income_category,
     "Reimbursement",
   );
-  await reminder(env, now);
+  await reminder(env, now + 3600000);
   assert.equal(
     sqlite
       .prepare("SELECT COUNT(*) AS n FROM outbox WHERE kind='reminder'")
@@ -752,7 +754,7 @@ test("income retry, duplicate updates and crossed replies preserve associations"
     0,
   );
   await sql(env, "UPDATE expenses SET description='' WHERE id=?", a.id).run();
-  await reminder(env, now);
+  await reminder(env, now + 3600000);
   assert.equal(
     sqlite
       .prepare("SELECT COUNT(*) AS n FROM outbox WHERE kind='reminder'")

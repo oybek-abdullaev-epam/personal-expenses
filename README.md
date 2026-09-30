@@ -11,7 +11,7 @@ Personal UZCARD income and spending: Gmail → Telegram → dashboard.
   - Spending is `oplata`, `E-Com oplata`, `Pokupka` or `Platezh`. Income is `Perevod na kartu`.
   - Unknown or conflicting formats become **review items**, which are excluded from totals.
   - Balances and full emails are never stored.
-- A Telegram bot asks the owner for a category (buttons) and a description (a reply to that transaction's prompt). It sends a receipt, tidies the chat, and sends one reminder at 20:00 Tashkent time if anything is still unfinished.
+- A Telegram bot asks the owner for a category (buttons) and a description (a reply to that transaction's prompt). It sends a receipt and tidies the chat. The daily summary is deployed: around **21:00 Tashkent**, it shows today’s spending so far and expense count separately per currency, any transactions still needing details across all dates, and the dashboard link. It includes email and manual spending; income, dismissed records, and unresolved reviews are excluded from spending. Days with neither spending nor outstanding details are skipped. Totals are refreshed on delivery/retry; undelivered summaries expire after the local date changes. An ambiguous Telegram timeout may repeat a message.
 - The dashboard has three parts:
   - **Ledger:** All, Income or Spending; search, date and category filters, and **Needs details**; net cash flow per currency; editing with conflict detection; resolving review items.
   - **Month view:** a spending calendar and category breakdown.

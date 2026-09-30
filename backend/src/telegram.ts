@@ -56,14 +56,67 @@ async function telegram(
     );
   return result.result;
 }
+const DAILY_SPENDING = `dismissed=0 AND review_reason IS NULL AND direction='expense' AND occurred_at>=? AND occurred_at<=?`;
+function dailyBounds(now: number) {
+  return [
+    new Date(`${tashkentDay(now)}T00:00:00+05:00`).toISOString(),
+    new Date(now).toISOString(),
+  ] as const;
+}
 export async function reminder(env: Env, now: number) {
-  if (new Date(now + 18000000).getUTCHours() !== 20) return;
+  if (new Date(now + 18000000).getUTCHours() !== 21) return;
   await sql(
     env,
-    `INSERT OR IGNORE INTO outbox (id,kind,available_at) SELECT ?,'reminder',? WHERE EXISTS (SELECT 1 FROM expenses WHERE dismissed=0 AND ${NEEDS_DETAILS})`,
+    `INSERT OR IGNORE INTO outbox (id,kind,available_at) SELECT ?,'reminder',? WHERE EXISTS (SELECT 1 FROM expenses WHERE dismissed=0 AND ${NEEDS_DETAILS}) OR EXISTS (SELECT 1 FROM expenses WHERE ${DAILY_SPENDING})`,
     `reminder:${tashkentDay(now)}`,
     now,
+    ...dailyBounds(now),
   ).run();
+}
+async function dailySummary(env: Env, now: number) {
+  const count = await sql(
+    env,
+    `SELECT COUNT(*) AS n FROM expenses WHERE dismissed=0 AND ${NEEDS_DETAILS}`,
+  ).first<{ n: number }>();
+  const totals = new Map<string, { amount: bigint; count: number }>();
+  let last = "";
+  // Sum individual safe-integer amounts with BigInt, avoiding rounded or overflowing aggregates.
+  while (true) {
+    const rows = await sql(
+      env,
+      `SELECT id,amount_minor,currency FROM expenses WHERE ${DAILY_SPENDING} AND id>? ORDER BY id LIMIT 1000`,
+      ...dailyBounds(now),
+      last,
+    ).all<Pick<Expense, "id" | "amount_minor" | "currency">>();
+    for (const row of rows.results) {
+      const total = totals.get(row.currency!) ?? { amount: 0n, count: 0 };
+      total.amount += BigInt(row.amount_minor!);
+      total.count++;
+      totals.set(row.currency!, total);
+    }
+    if (rows.results.length < 1000) break;
+    last = rows.results.at(-1)!.id;
+  }
+  if (!totals.size && !count?.n) return "";
+  const date = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Tashkent",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(now));
+  const lines = [`Today’s spending so far · ${date}`];
+  for (const [currency, total] of [...totals].sort(([a], [b]) =>
+    a.localeCompare(b),
+  ))
+    lines.push(
+      `${formatMoney(total.amount.toString(), currency)} · ${total.count} expense${total.count === 1 ? "" : "s"}`,
+    );
+  if (!totals.size) lines.push("No spending recorded today.");
+  if (count?.n)
+    lines.push(
+      `\n${count.n} transaction${count.n === 1 ? " still needs" : "s still need"} details.`,
+    );
+  lines.push(`\nOpen dashboard: ${env.SITE_URL}`);
+  return lines.join("\n");
 }
 function summary(e: Expense) {
   return `${e.direction === "income" ? "Income received" : "Expense"} · ${e.merchant}\n${formatMoney(e.amount_minor!, e.currency!)} · card ••${e.card_suffix}\n${new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tashkent", dateStyle: "medium", timeStyle: "short" }).format(new Date(e.occurred_at!))} (Tashkent)`;
@@ -191,13 +244,9 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
       else if (row.kind === "auth")
         text = `Gmail authorization needs attention. Reconnect Google to resume email sync.\n${env.SITE_URL}`;
       else if (row.kind === "reminder") {
-        const count = await sql(
-          env,
-          `SELECT COUNT(*) AS n FROM expenses WHERE dismissed=0 AND ${NEEDS_DETAILS}`,
-        ).first<{ n: number }>();
-        // Drop stale daily reminders after their local date, and reminders made unnecessary by edits.
-        if (count?.n && row.id === `reminder:${tashkentDay(now)}`)
-          text = `${count.n} transaction${count.n === 1 ? "" : "s"} still need details.\n${env.SITE_URL}`;
+        // Drop stale summaries after their local date; re-read totals and outstanding details on retries.
+        if (row.id === `reminder:${tashkentDay(current)}`)
+          text = await dailySummary(env, current);
       }
       if (text) {
         const sent = await telegram(env, "sendMessage", {
