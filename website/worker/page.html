@@ -1,0 +1,1501 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Public income and spending dashboard" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Money dashboard</title>
+    <style>
+      :root {
+        --porcelain: #edf1f5;
+        --surface: #ffffff;
+        --sunk: #f5f8fa;
+        --ink: #10233f;
+        --ink-2: #4a5a70;
+        --line: #d6dee7;
+        --line-strong: #b4c1d0;
+        --lapis: #1d4c9a;
+        --lapis-wash: #e3ebf8;
+        --on-lapis: #ffffff;
+        --firuza: #0a7770;
+        --anor: #ae2a40;
+        --anor-wash: #fbe8eb;
+        --saffron: #f2b33d;
+        --saffron-wash: #fcefcd;
+        --saffron-ink: #6b4500;
+        --scrim: #10233f99;
+        --heat-1: #f7dde1;
+        --heat-2: #eca9b4;
+        --heat-3: #d4687b;
+        --heat-4: #ae2a40;
+        --on-heat-4: #ffffff;
+        --pending-mark: #b87a08;
+        --display:
+          ui-rounded, "SF Pro Rounded", "Nunito", "Segoe UI Variable Display",
+          system-ui, sans-serif;
+        --text: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        color-scheme: light;
+        font-family: var(--text);
+        font-size: 16px;
+        color: var(--ink);
+        background: var(--porcelain);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --porcelain: #0a1626;
+          --surface: #10213a;
+          --sunk: #0d1b30;
+          --ink: #e6edf6;
+          --ink-2: #a5b4c8;
+          --line: #223756;
+          --line-strong: #3a5378;
+          --lapis: #86a9ee;
+          --lapis-wash: #1a3159;
+          --on-lapis: #0a1626;
+          --firuza: #4acfbe;
+          --anor: #ff8a9c;
+          --anor-wash: #3d1a22;
+          --saffron: #e8a93a;
+          --saffron-wash: #3a2d10;
+          --saffron-ink: #f6cd78;
+          --scrim: #000000b3;
+          --heat-1: #3b2336;
+          --heat-2: #5c2b42;
+          --heat-3: #8a3a55;
+          --heat-4: #cc5a74;
+          --on-heat-4: #0a1626;
+          --pending-mark: #e8a93a;
+          color-scheme: dark;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--porcelain);
+        color: var(--ink);
+        line-height: 1.45;
+        -webkit-text-size-adjust: 100%;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button,
+      select,
+      summary,
+      label:has(> input[type="radio"], > input[type="checkbox"]) {
+        cursor: pointer;
+      }
+      :focus-visible {
+        outline: 3px solid var(--lapis);
+        outline-offset: 2px;
+      }
+      a {
+        color: inherit;
+      }
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+      .sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+      .hidden,
+      [hidden] {
+        display: none !important;
+      }
+
+      /* Buttons */
+      .btn {
+        min-height: 44px;
+        padding: 10px 18px;
+        border-radius: 12px;
+        border: 1px solid var(--line-strong);
+        background: var(--surface);
+        font-weight: 600;
+      }
+      .btn:hover {
+        background: var(--lapis-wash);
+      }
+      .btn:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+      .btn.primary {
+        background: var(--lapis);
+        border-color: var(--lapis);
+        color: var(--on-lapis);
+      }
+      .btn.primary:hover {
+        filter: brightness(1.08);
+      }
+      .btn.danger {
+        color: var(--anor);
+        border-color: transparent;
+        background: transparent;
+        padding-inline: 8px;
+      }
+      .btn.danger:hover {
+        background: var(--anor-wash);
+      }
+
+      /* Top bar */
+      .bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px max(16px, calc((100vw - 1200px) / 2));
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--display);
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .brand svg {
+        width: 26px;
+        height: 26px;
+        flex: none;
+      }
+      .star-a {
+        fill: var(--firuza);
+      }
+      .star-b {
+        fill: var(--lapis);
+      }
+      .star-c {
+        fill: var(--saffron);
+      }
+      .public {
+        font-size: 14px;
+        color: var(--ink-2);
+        white-space: nowrap;
+      }
+
+      /* Page layout */
+      .layout {
+        max-width: 1232px;
+        margin: 0 auto;
+        padding: 20px 16px 48px;
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .side {
+        display: grid;
+        gap: 20px;
+        align-content: start;
+        min-width: 0;
+      }
+      @media (min-width: 640px) {
+        .layout {
+          padding: 28px 24px 64px;
+          max-width: 760px;
+        }
+      }
+      @media (min-width: 1024px) {
+        .layout {
+          max-width: 1232px;
+          grid-template-columns: 380px minmax(0, 1fr);
+          gap: 40px;
+          align-items: start;
+        }
+        .side {
+          position: sticky;
+          top: 24px;
+          grid-row: span 2;
+        }
+        .note {
+          grid-column: 2;
+        }
+      }
+
+      /* Sync status */
+      .status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .sync {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--ink-2);
+        min-width: 0;
+      }
+      .sync::before {
+        content: "";
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--line-strong);
+        transform: translateY(-1px);
+      }
+      .sync[data-state="ok"]::before {
+        background: var(--firuza);
+      }
+      .sync[data-state="warn"]::before {
+        background: var(--saffron);
+      }
+      .sync[data-state="down"]::before {
+        background: var(--anor);
+      }
+      #refresh {
+        flex: none;
+        min-height: 40px;
+        padding: 8px 14px;
+        font-size: 14px;
+      }
+      .error {
+        background: var(--anor-wash);
+        color: var(--anor);
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 15px;
+      }
+
+      /* Totals: net figure and income/spending split */
+      .totals {
+        display: grid;
+        gap: 28px;
+      }
+      .total-label {
+        font-size: 15px;
+        color: var(--ink-2);
+        margin-bottom: 2px;
+      }
+      .figure {
+        font-family: var(--display);
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        overflow-wrap: anywhere;
+      }
+      .figure .cur {
+        font-weight: 600;
+        font-size: 0.5em;
+        color: var(--ink-2);
+        margin-left: 0.3em;
+        letter-spacing: 0;
+      }
+      .net {
+        font-size: clamp(34px, 10.5vw, 52px);
+        line-height: 1.1;
+      }
+      @media (min-width: 1024px) {
+        .net {
+          font-size: 40px;
+        }
+      }
+      .split {
+        display: flex;
+        gap: 3px;
+        height: 12px;
+        margin: 16px 0 12px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: var(--line);
+      }
+      .split span {
+        min-width: 3px;
+        transform-origin: left;
+      }
+      .split .in {
+        background: var(--firuza);
+      }
+      .split .out {
+        background: var(--anor);
+      }
+      .grow .split span {
+        animation: grow 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      }
+      .grow .split .out {
+        animation-delay: 120ms;
+      }
+      @keyframes grow {
+        from {
+          transform: scaleX(0);
+        }
+      }
+      .legend {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin: 0;
+      }
+      .legend div {
+        min-width: 0;
+      }
+      .legend dt {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      .legend dt::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        background: var(--firuza);
+      }
+      .legend .out dt::before {
+        background: var(--anor);
+      }
+      .legend dd {
+        margin: 2px 0 0;
+        font-size: 17px;
+      }
+      .figure.none {
+        color: var(--ink-2);
+        font-weight: 600;
+        font-size: 22px;
+      }
+
+      /* Filters */
+      .filters {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+      }
+      .search {
+        display: flex;
+        gap: 8px;
+      }
+      .search label {
+        flex: 1;
+        min-width: 0;
+      }
+      .search input {
+        width: 100%;
+      }
+      .search .btn {
+        flex: none;
+        width: 48px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+      }
+      .search svg {
+        width: 22px;
+        height: 22px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+      }
+      input,
+      select,
+      textarea {
+        min-height: 44px;
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 9px 12px;
+        max-width: 100%;
+        min-width: 0;
+      }
+      input::placeholder,
+      textarea::placeholder {
+        color: var(--ink-2);
+        opacity: 0.7;
+      }
+      .toggles {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .seg {
+        display: flex;
+        margin: 0;
+        padding: 3px;
+        border: 0;
+        border-radius: 14px;
+        background: var(--line);
+        flex: 1 0 auto;
+      }
+      .seg label {
+        flex: 1 0 auto;
+      }
+      .seg input,
+      .chip input {
+        position: absolute;
+        opacity: 0;
+        width: 1px;
+        height: 1px;
+        min-height: 0;
+      }
+      .seg span {
+        display: grid;
+        place-items: center;
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 11px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--ink-2);
+        white-space: nowrap;
+      }
+      .seg input:checked + span {
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: 0 1px 2px #10233f26;
+      }
+      .seg input:focus-visible + span,
+      .chip input:focus-visible + span {
+        outline: 3px solid var(--lapis);
+        outline-offset: 1px;
+      }
+      .chip {
+        flex: 0 0 auto;
+      }
+      .chip span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 44px;
+        padding: 0 14px 0 12px;
+        border-radius: 14px;
+        border: 1px solid var(--line-strong);
+        font-size: 15px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .chip span::before {
+        content: "";
+        width: 16px;
+        height: 16px;
+        border-radius: 5px;
+        border: 2px solid var(--line-strong);
+      }
+      .chip input:checked + span {
+        background: var(--saffron-wash);
+        border-color: var(--saffron);
+        color: var(--saffron-ink);
+      }
+      .chip span {
+        position: relative;
+      }
+      .chip input:checked + span::before {
+        border-color: var(--saffron);
+        background: var(--saffron);
+      }
+      .chip input:checked + span::after {
+        content: "";
+        position: absolute;
+        left: 18px;
+        top: 50%;
+        width: 5px;
+        height: 10px;
+        margin-top: -7px;
+        border: solid #10233f;
+        border-width: 0 2.5px 2.5px 0;
+        transform: rotate(45deg);
+      }
+      .more {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+      .more summary {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 14px;
+        font-size: 15px;
+        font-weight: 600;
+        list-style: none;
+      }
+      .more summary::-webkit-details-marker {
+        display: none;
+      }
+      .more summary::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-right: 2px solid currentColor;
+        border-bottom: 2px solid currentColor;
+        transform: rotate(-45deg);
+        transition: transform 150ms;
+      }
+      .more[open] summary::before {
+        transform: rotate(45deg);
+      }
+      .more-body {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        padding: 4px 14px 14px;
+      }
+      .more-body label,
+      .editor label {
+        display: grid;
+        gap: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        min-width: 0;
+      }
+      .more-body input,
+      .more-body select {
+        width: 100%;
+      }
+      .more-body .wide {
+        grid-column: 1 / -1;
+      }
+      .note {
+        font-size: 14px;
+        color: var(--ink-2);
+        max-width: 60ch;
+      }
+
+      /* Ledger */
+      .ledger {
+        min-width: 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        overflow: clip;
+      }
+      .days,
+      .day ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .day h2 {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        padding: 10px 20px 8px;
+        background: var(--sunk);
+        border-bottom: 1px solid var(--line);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink-2);
+      }
+      .day + .day h2 {
+        border-top: 1px solid var(--line);
+      }
+      .tx {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 4px 16px;
+        width: 100%;
+        min-height: 72px;
+        padding: 14px 20px;
+        border: 0;
+        background: transparent;
+        text-align: left;
+        border-radius: 0;
+      }
+      .day li + li .tx {
+        border-top: 1px solid var(--line);
+      }
+      .tx:hover {
+        background: var(--sunk);
+      }
+      .tx:focus-visible {
+        outline-offset: -3px;
+      }
+      .tx.needs::before,
+      .tx.review::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 10px;
+        bottom: 10px;
+        width: 4px;
+        border-radius: 0 4px 4px 0;
+        background: var(--saffron);
+      }
+      .tx-main {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+      .merchant {
+        font-size: 16px;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 2px 10px;
+        font-size: 15px;
+        min-width: 0;
+      }
+      .cat {
+        font-weight: 600;
+        color: var(--lapis);
+      }
+      .cat.in {
+        color: var(--firuza);
+      }
+      .desc {
+        color: var(--ink-2);
+        overflow-wrap: anywhere;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .flag {
+        font-size: 13px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: var(--saffron-wash);
+        color: var(--saffron-ink);
+      }
+      .missing {
+        color: var(--saffron-ink);
+      }
+      .meta {
+        display: flex;
+        gap: 12px;
+        font-size: 13px;
+        color: var(--ink-2);
+        font-variant-numeric: tabular-nums;
+      }
+      .amt {
+        text-align: right;
+        font-size: 17px;
+        white-space: nowrap;
+        line-height: 1.25;
+      }
+      .amt .cur {
+        display: block;
+        font-size: 12px;
+        margin: 2px 0 0;
+      }
+      .amt.in {
+        color: var(--firuza);
+      }
+      .amt.off {
+        font-family: var(--text);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink-2);
+      }
+      @media (max-width: 380px) {
+        .tx {
+          padding: 14px 16px;
+          gap: 4px 10px;
+        }
+        .day h2 {
+          padding-inline: 16px;
+        }
+        .amt {
+          font-size: 16px;
+        }
+      }
+      .empty {
+        padding: 56px 24px;
+        text-align: center;
+        color: var(--ink-2);
+        display: grid;
+        gap: 6px;
+        justify-items: center;
+      }
+      .empty strong {
+        color: var(--ink);
+        font-family: var(--display);
+        font-size: 22px;
+      }
+      .empty .btn {
+        margin-top: 12px;
+      }
+      .ledger-foot {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 20px;
+        border-top: 1px solid var(--line);
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      #more {
+        width: 100%;
+      }
+
+      /* Editor */
+      .editor {
+        border: 0;
+        padding: 0;
+        width: min(560px, calc(100% - 32px));
+        max-height: min(90vh, 900px);
+        border-radius: 22px;
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: 0 24px 80px #0a162659;
+      }
+      .editor::backdrop {
+        background: var(--scrim);
+      }
+      .editor form {
+        display: grid;
+        gap: 16px;
+        padding: 24px;
+      }
+      .editor h2 {
+        font-family: var(--display);
+        font-size: 22px;
+        font-weight: 700;
+      }
+      #edit-summary {
+        margin-top: 4px;
+        font-size: 15px;
+        color: var(--ink-2);
+        overflow-wrap: anywhere;
+      }
+      .editor input,
+      .editor select,
+      .editor textarea {
+        width: 100%;
+        font-weight: 400;
+        font-size: 16px;
+      }
+      .editor textarea {
+        resize: vertical;
+        min-height: 96px;
+      }
+      .review-fields {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: minmax(0, 1fr);
+      }
+      @media (min-width: 480px) {
+        .review-fields {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .review-fields label:first-child {
+          grid-column: 1 / -1;
+        }
+      }
+      #review-note {
+        color: var(--saffron-ink);
+        background: var(--saffron-wash);
+        padding: 12px 14px;
+        border-radius: 12px;
+        font-size: 14px;
+      }
+      #form-error {
+        color: var(--anor);
+        font-size: 14px;
+      }
+      #form-error:empty {
+        display: none;
+      }
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .actions {
+        position: sticky;
+        bottom: 0;
+        margin: 0 -24px -24px;
+        padding: 12px 24px 24px;
+        background: var(--surface);
+        border-top: 1px solid var(--line);
+      }
+      .actions #dismiss {
+        margin-right: auto;
+      }
+      @media (max-width: 599px) {
+        .editor {
+          width: 100%;
+          max-width: 100%;
+          margin: auto 0 0;
+          max-height: 92vh;
+          border-radius: 22px 22px 0 0;
+        }
+        .editor[open] {
+          animation: rise 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+        }
+        .editor form {
+          padding: 22px 16px 0;
+        }
+        .editor .actions {
+          margin: 0 -16px;
+          padding: 12px 16px max(16px, env(safe-area-inset-bottom));
+        }
+        .actions .btn {
+          flex: 1;
+          white-space: nowrap;
+        }
+        .actions #dismiss {
+          order: 3;
+          flex-basis: 100%;
+          margin: 0;
+        }
+      }
+      @keyframes rise {
+        from {
+          transform: translateY(40px);
+          opacity: 0;
+        }
+      }
+
+      /* View switch */
+      .views {
+        display: flex;
+        padding: 3px;
+        border-radius: 14px;
+        background: var(--line);
+        margin-left: auto;
+      }
+      .views a {
+        display: grid;
+        place-items: center;
+        min-height: 38px;
+        padding: 0 16px;
+        border-radius: 11px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--ink-2);
+        text-decoration: none;
+      }
+      .views a[aria-current="page"] {
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: 0 1px 2px #10233f26;
+      }
+      @media (max-width: 559px) {
+        .public {
+          display: none;
+        }
+      }
+
+      /* Month view */
+      .month-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .month-nav h2 {
+        flex: 1;
+        font-family: var(--display);
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .month-nav .btn {
+        width: 44px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+      }
+      .month-nav svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .spent {
+        font-size: clamp(34px, 10.5vw, 52px);
+        line-height: 1.1;
+      }
+      @media (min-width: 1024px) {
+        .spent {
+          font-size: 40px;
+        }
+      }
+      .pace {
+        margin-top: 6px;
+        font-size: 15px;
+        color: var(--ink-2);
+      }
+      .month-totals {
+        gap: 0;
+      }
+      .month-totals .total-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .month-totals .total-label::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        background: var(--anor);
+      }
+      .month-totals .split {
+        margin-top: 20px;
+      }
+      .month-totals .legend dt::before {
+        display: none;
+      }
+      .month-totals .legend .in dt::before {
+        display: block;
+      }
+      .month-note {
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      .month-main {
+        display: grid;
+        gap: 20px;
+        min-width: 0;
+        transition: opacity 150ms;
+      }
+      .busy .month-main,
+      .busy .month-totals {
+        opacity: 0.55;
+      }
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 20px;
+        min-width: 0;
+      }
+      @media (max-width: 380px) {
+        .panel {
+          padding: 16px 12px;
+        }
+      }
+      .panel-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px 16px;
+        margin-bottom: 16px;
+      }
+      .panel h2 {
+        font-size: 17px;
+        font-weight: 700;
+      }
+      .scale {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .scale i {
+        width: 14px;
+        height: 14px;
+        border-radius: 4px;
+      }
+      .scale span:first-child {
+        margin-right: 4px;
+      }
+      .scale span:last-child {
+        margin-left: 4px;
+      }
+
+      /* Calendar: one cell per Tashkent day, shaded by spending */
+      .cal {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 4px;
+      }
+      @media (min-width: 640px) {
+        .cal {
+          gap: 6px;
+        }
+      }
+      .wd {
+        padding-bottom: 4px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink-2);
+      }
+      .cell {
+        position: relative;
+        aspect-ratio: 1;
+        min-height: 40px;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: transparent;
+        font-variant-numeric: tabular-nums;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink-2);
+        display: grid;
+        place-items: start;
+      }
+      .cell span {
+        padding: 6px 8px;
+        line-height: 1;
+      }
+      @media (max-width: 480px) {
+        .cell {
+          place-items: center;
+        }
+        .cell span {
+          padding: 0;
+        }
+      }
+      .cell[data-level] {
+        border-color: transparent;
+        color: var(--ink);
+      }
+      .cell[data-level="1"] {
+        background: var(--heat-1);
+      }
+      .cell[data-level="2"] {
+        background: var(--heat-2);
+      }
+      .cell[data-level="3"] {
+        background: var(--heat-3);
+      }
+      .cell[data-level="4"] {
+        background: var(--heat-4);
+        color: var(--on-heat-4);
+      }
+      .cell.untracked {
+        border-style: solid;
+        color: var(--line-strong);
+        background: repeating-linear-gradient(
+          135deg,
+          transparent 0 5px,
+          var(--line) 5px 6px
+        );
+      }
+      .cell.future {
+        color: var(--line-strong);
+        border-color: transparent;
+        background: var(--sunk);
+      }
+      .cell.today {
+        box-shadow:
+          0 0 0 2px var(--surface),
+          0 0 0 4px var(--ink);
+      }
+      .cell:hover,
+      .cell[aria-pressed="true"] {
+        box-shadow:
+          0 0 0 2px var(--surface),
+          0 0 0 4px var(--lapis);
+      }
+      .grow-cal .cell {
+        animation: fill 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+        animation-delay: calc(var(--i) * 14ms);
+      }
+      @keyframes fill {
+        from {
+          opacity: 0;
+          transform: scale(0.85);
+        }
+      }
+      .readout {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 16px;
+        min-height: 60px;
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+        font-size: 15px;
+      }
+      .readout strong {
+        display: block;
+      }
+      .readout .figure {
+        font-size: 20px;
+      }
+      .readout .figure .cur {
+        font-size: 14px;
+      }
+      .readout .sub {
+        color: var(--ink-2);
+        font-size: 14px;
+      }
+      .readout .btn {
+        min-height: 40px;
+        padding: 8px 14px;
+        font-size: 14px;
+      }
+      .table-view {
+        margin-top: 12px;
+        font-size: 14px;
+      }
+      .table-view summary {
+        color: var(--ink-2);
+        font-weight: 600;
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .table-view table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        font-variant-numeric: tabular-nums;
+      }
+      .table-view th,
+      .table-view td {
+        padding: 6px 0;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+      .table-view td:last-child,
+      .table-view th:last-child {
+        text-align: right;
+      }
+
+      /* Category bars: one series, so one colour */
+      .cats {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 2px;
+      }
+      .cat-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px 12px;
+        width: 100%;
+        padding: 10px 8px;
+        margin: 0 -8px;
+        box-sizing: content-box;
+        border: 0;
+        border-radius: 10px;
+        background: transparent;
+        text-align: left;
+      }
+      .cat-row:hover {
+        background: var(--sunk);
+      }
+      .cat-name {
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+      .cat-val {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .cat-val small {
+        margin-left: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink-2);
+      }
+      .cat-bar {
+        grid-column: 1 / -1;
+        height: 10px;
+        border-radius: 0 4px 4px 0;
+        background: var(--lapis);
+        min-width: 3px;
+      }
+      .cat-row.pending .cat-bar {
+        background: var(--pending-mark);
+      }
+      .cat-row.pending .cat-name {
+        color: var(--saffron-ink);
+      }
+      .panel .empty {
+        padding: 28px 8px;
+      }
+
+      #toast {
+        position: fixed;
+        bottom: max(24px, env(safe-area-inset-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--ink);
+        color: var(--porcelain);
+        padding: 12px 22px;
+        border-radius: 14px;
+        font-weight: 600;
+        box-shadow: 0 8px 28px #0a162640;
+        z-index: 10;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="bar">
+      <h1 class="brand">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="5" y="5" width="14" height="14" rx="1.5" class="star-a" />
+          <rect
+            x="5"
+            y="5"
+            width="14"
+            height="14"
+            rx="1.5"
+            class="star-b"
+            transform="rotate(45 12 12)"
+            opacity="0.9"
+          />
+          <circle cx="12" cy="12" r="3" class="star-c" />
+        </svg>
+        My money
+      </h1>
+      <nav class="views" aria-label="Views">
+        <a href="#" id="to-ledger" aria-current="page">Ledger</a
+        ><a href="#month" id="to-month">Month</a>
+      </nav>
+      <span class="public">Public · Tashkent</span>
+    </header>
+    <main class="layout" id="ledger-view">
+      <aside class="side">
+        <div class="status">
+          <p class="sync" id="sync">Checking your connections…</p>
+          <button class="btn" id="refresh">Refresh</button>
+        </div>
+        <div id="error" class="error" role="alert" hidden></div>
+        <section
+          class="totals"
+          id="totals"
+          aria-label="Income, spending and net cash flow"
+        ></section>
+        <form class="filters" id="filters" role="search">
+          <div class="search">
+            <label
+              ><span class="sr">Search</span
+              ><input
+                name="q"
+                placeholder="Merchant or description"
+                type="search"
+                enterkeyhint="search"
+            /></label>
+            <button type="submit" class="btn primary icon" aria-label="Search">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="M15.5 15.5 20 20" />
+              </svg>
+            </button>
+          </div>
+          <div class="toggles">
+            <fieldset class="seg">
+              <legend class="sr">Show</legend>
+              <label
+                ><input type="radio" name="direction" value="" checked /><span
+                  >All</span
+                ></label
+              ><label
+                ><input type="radio" name="direction" value="income" /><span
+                  >Income</span
+                ></label
+              ><label
+                ><input type="radio" name="direction" value="expense" /><span
+                  >Spending</span
+                ></label
+              >
+            </fieldset>
+            <label class="chip"
+              ><input name="needsDetails" type="checkbox" /><span
+                >Needs details</span
+              ></label
+            >
+          </div>
+          <details class="more" id="more-filters">
+            <summary id="more-summary">Dates and category</summary>
+            <div class="more-body">
+              <label>From<input name="from" type="date" /></label
+              ><label>To<input name="to" type="date" /></label
+              ><label class="wide"
+                >Category<select name="category">
+                  <option value="">All categories</option>
+                </select></label
+              >
+            </div>
+          </details>
+        </form>
+      </aside>
+      <section class="ledger" aria-labelledby="ledger-title">
+        <h2 class="sr" id="ledger-title">Transactions</h2>
+        <ol class="days" id="rows"></ol>
+        <div class="empty" id="empty" role="status">Loading transactions…</div>
+        <div class="ledger-foot">
+          <span>Amounts stay in their original currency.</span
+          ><button class="btn" id="more" hidden>Load more</button>
+        </div>
+      </section>
+      <p class="note">
+        Transaction times are shown in Asia/Tashkent. Review items are excluded
+        from totals. Net cash flow is income minus spending; repayments are
+        included in income.
+      </p>
+    </main>
+    <main class="layout" id="month-view" hidden>
+      <aside class="side">
+        <div class="month-nav">
+          <button class="btn" id="prev-month" aria-label="Previous month">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 5 8 12l7 7" />
+            </svg>
+          </button>
+          <h2 id="month-title" aria-live="polite"></h2>
+          <button class="btn" id="next-month" aria-label="Next month">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 5 7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+        <fieldset class="seg" id="month-currency" hidden>
+          <legend class="sr">Currency</legend>
+        </fieldset>
+        <div id="month-error" class="error" role="alert" hidden></div>
+        <section
+          class="totals month-totals"
+          id="month-totals"
+          aria-label="Spending and income this month"
+        ></section>
+        <p class="month-note">
+          Days are Tashkent calendar days. Review items are excluded, and days
+          before tracking started aren’t counted.
+        </p>
+      </aside>
+      <div class="month-main">
+        <section class="panel" aria-labelledby="cal-title">
+          <div class="panel-head">
+            <h2 id="cal-title">Spending by day</h2>
+            <div class="scale" aria-hidden="true">
+              <span>Less</span><i style="background: var(--heat-1)"></i
+              ><i style="background: var(--heat-2)"></i
+              ><i style="background: var(--heat-3)"></i
+              ><i style="background: var(--heat-4)"></i><span>More</span>
+            </div>
+          </div>
+          <div
+            class="cal"
+            id="cal"
+            role="group"
+            aria-label="Days of the month"
+          ></div>
+          <div class="readout" id="readout" aria-live="polite"></div>
+          <details class="table-view">
+            <summary>Daily amounts as a table</summary>
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Day</th>
+                  <th scope="col">Transactions</th>
+                  <th scope="col">Spent</th>
+                </tr>
+              </thead>
+              <tbody id="day-table"></tbody>
+            </table>
+          </details>
+        </section>
+        <section class="panel" aria-labelledby="cats-title">
+          <div class="panel-head">
+            <h2 id="cats-title">Where it went</h2>
+          </div>
+          <ol class="cats" id="cats"></ol>
+        </section>
+      </div>
+    </main>
+    <dialog id="editor" class="editor" aria-labelledby="edit-title">
+      <form id="edit-form">
+        <div>
+          <h2 id="edit-title">Transaction details</h2>
+          <p id="edit-summary"></p>
+        </div>
+        <div id="review-note" hidden>
+          Check the original email, then enter the confirmed transaction
+          details. Unsupported operations can be dismissed.
+        </div>
+        <div id="review-fields" class="review-fields" hidden>
+          <label
+            >Merchant or sender<input name="merchant" maxlength="250" /></label
+          ><label
+            >Amount<input
+              name="amount"
+              inputmode="decimal"
+              placeholder="30500.00" /></label
+          ><label
+            >Currency<select name="currency">
+              <option>UZS</option>
+              <option>USD</option>
+              <option>EUR</option>
+              <option>RUB</option>
+            </select></label
+          ><label
+            >Transaction time (Tashkent)<input
+              name="local_time"
+              placeholder="23.09.26 19:44" /></label
+          ><label
+            >Card’s last four digits<input
+              name="card_suffix"
+              pattern="[0-9]{4}"
+              maxlength="4"
+              inputmode="numeric"
+          /></label>
+        </div>
+        <label
+          >Direction<select name="direction">
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select></label
+        >
+        <label
+          >Category<select name="category">
+            <option value="">Choose a category</option>
+          </select></label
+        ><label
+          >Description<textarea
+            name="description"
+            maxlength="500"
+            placeholder="What was this transaction for?"
+          ></textarea>
+        </label>
+        <div id="form-error" role="alert"></div>
+        <div class="actions">
+          <button type="button" id="dismiss" class="btn danger" hidden>
+            Dismiss review</button
+          ><button type="button" class="btn" id="cancel">Cancel</button
+          ><button type="submit" class="btn primary" id="save">
+            Save changes
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <div id="toast" role="status" hidden></div>
+    <script>
+      __CLIENT_SCRIPT__;
+    </script>
+  </body>
+</html>

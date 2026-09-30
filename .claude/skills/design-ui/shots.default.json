@@ -1,0 +1,38 @@
+[
+  { "name": "ledger", "fullPage": true, "light": true },
+  {
+    "name": "more-filters",
+    "actions": [{ "click": "#more-summary" }, { "wait": 300 }]
+  },
+  {
+    "name": "needs-details",
+    "actions": [{ "click": "input[name=needsDetails]" }, { "wait": 600 }]
+  },
+  {
+    "name": "edit",
+    "actions": [
+      { "click": "#rows .tx:not(.review)" },
+      { "waitFor": "#editor[open]" },
+      { "wait": 400 }
+    ]
+  },
+  {
+    "name": "review",
+    "actions": [
+      { "click": "#rows .tx.review" },
+      { "waitFor": "#editor[open]" },
+      { "wait": 400 }
+    ]
+  },
+  {
+    "name": "empty",
+    "actions": [
+      {
+        "fill": { "selector": "input[name=q]", "value": "no-such-merchant-xyz" }
+      },
+      { "submit": "#filters" },
+      { "wait": 700 }
+    ]
+  },
+  { "name": "month", "hash": "#month", "fullPage": true, "light": true }
+]

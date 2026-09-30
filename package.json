@@ -1,0 +1,31 @@
+{
+  "name": "personal-expenses",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --config backend/wrangler.toml",
+    "dev:website": "npm --prefix website run build && wrangler dev website/dist/server/index.js --port 8788",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && wrangler deploy --dry-run --config backend/wrangler.toml && npm --prefix website run build && npm --prefix website run validate",
+    "db:migrate:local": "wrangler d1 migrations apply expenses --local --config backend/wrangler.toml",
+    "db:migrate:remote": "wrangler d1 migrations apply expenses --remote --config backend/wrangler.toml",
+    "deploy:backend": "wrangler deploy --config backend/wrangler.toml",
+    "preview": "npm --prefix website run build && node --import tsx scripts/preview.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260923.1",
+    "@types/he": "^1.2.3",
+    "@types/node": "^24.0.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "he": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -1,0 +1,15 @@
+name = "personal-expenses"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "expenses"
+database_id = "1956fa8d-7976-4a53-bdb2-22f63ffc7e18"
+migrations_dir = "migrations"
+
+[vars]
+SITE_URL = "https://personal-expenses-liard-chi.vercel.app"

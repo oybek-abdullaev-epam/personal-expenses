@@ -1,0 +1,8 @@
+Hurmatli mijoz
+Sizning kartangizda quyidagi amaliyot bajarildi:
+Platezh: SAMPLE TRANSFER, UZ,22.09.26 19:44,karta ***1234. summa:12500.00 UZS balans:99.00 UZS
+Hurmat bilan, UZCARD texnik yordam xizmati
+Уважаемый клиент
+На вашей карте была выполнена следующая операция:
+Platezh: SAMPLE TRANSFER, UZ,22.09.26 19:44,karta ***1234. summa:12500.00 UZS balans:99.00 UZS
+С уважением, Служба технической поддержки UZCARD
