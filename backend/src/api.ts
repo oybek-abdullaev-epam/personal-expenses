@@ -9,7 +9,8 @@ import {
   money,
   tashkentDay,
 } from "./domain";
-import { getExpense, sql } from "./store";
+import { manualDetails } from "./manual";
+import { getExpense, saveManual, sql } from "./store";
 export const json = (data: unknown, status = 200) =>
   Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 function filters(url: URL) {
@@ -73,6 +74,42 @@ export async function api(
     return json({ error: "Unauthorized" }, 401);
   const url = new URL(request.url),
     path = url.pathname;
+  if (path === "/api/expenses" && request.method === "POST") {
+    let body: Record<string, unknown>;
+    try {
+      const raw = await request.text();
+      if (new TextEncoder().encode(raw).length > 8000)
+        return json({ error: "Request too large" }, 413);
+      body = JSON.parse(raw);
+      if (!body || typeof body !== "object" || Array.isArray(body))
+        throw Error();
+    } catch {
+      return json({ error: "Invalid JSON body" }, 400);
+    }
+    if (
+      typeof body.id !== "string" ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+        body.id,
+      )
+    )
+      return json({ error: "A valid request ID is required" }, 400);
+    let details;
+    try {
+      details = manualDetails(body, now);
+    } catch (e) {
+      return json({ error: (e as Error).message }, 400);
+    }
+    const result = await saveManual(env, body.id, details, now);
+    if (result.conflict)
+      return json(
+        {
+          error:
+            "This request was already saved with different details. Refresh to review it.",
+        },
+        409,
+      );
+    return json(result.expense, result.created ? 201 : 200);
+  }
   if (path === "/api/activate" && request.method === "POST") {
     await sql(
       env,
@@ -241,6 +278,28 @@ export async function api(
       return json({ error: "Invalid body" }, 400);
     if (!Number.isInteger(body.version))
       return json({ error: "A version is required" }, 400);
+    if (existing.source === "manual") {
+      let details;
+      try {
+        details = manualDetails(body, now);
+      } catch (e) {
+        return json({ error: (e as Error).message }, 400);
+      }
+      const entries = Object.entries(details);
+      const result = await sql(
+        env,
+        `UPDATE expenses SET ${entries.map(([key]) => key + "=?").join(",")},version=version+1 WHERE id=? AND version=?`,
+        ...entries.map(([, value]) => value as string | number | null),
+        existing.id,
+        body.version as number,
+      ).run();
+      if (!result.meta.changes)
+        return json(
+          { error: "This transaction changed. Refresh and try again." },
+          409,
+        );
+      return json(await getExpense(env, existing.id));
+    }
     const fields: string[] = [],
       values: (string | number | null)[] = [];
     let direction = existing.direction;

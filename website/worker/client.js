@@ -19,6 +19,7 @@ let expenses = [],
   nextOffset = null,
   params = new URLSearchParams(),
   selected = null,
+  creationId = null,
   loading = false,
   requestVersion = 0;
 const time = (value) =>
@@ -121,6 +122,7 @@ function row(e) {
     );
   }
   meta.append(node("span", clock(at)));
+  if (e.source === "manual") meta.append(node("span", "Manual"));
   if (e.card_suffix) {
     const card = node("span", "••" + e.card_suffix);
     card.prepend(node("span", "Card ending ", "sr"));
@@ -333,33 +335,89 @@ function updateCategories(value = "") {
   select.value = value;
 }
 edit.elements.direction.onchange = () => updateCategories();
-function openEditor(e) {
+function localInput(iso) {
+  return new Date(Date.parse(iso) + 5 * 3600000).toISOString().slice(0, 16);
+}
+function apiLocalTime(input) {
+  const [date, hour] = input.split("T");
+  if (!date || !hour) return input;
+  const [year, month, day] = date.split("-");
+  return `${day}.${month}.${year.slice(2)} ${hour}`;
+}
+function openEditor(e = null) {
   selected = e;
+  creationId = e ? null : crypto.randomUUID();
+  const manual = !e || e.source === "manual";
   edit.reset();
-  edit.elements.direction.value = e.direction || "expense";
-  edit.elements.direction.disabled = !e.review_reason;
-  updateCategories(e.income_category || e.category || "");
-  edit.elements.description.value = e.description;
-  $("edit-summary").textContent = e.review_reason
-    ? "Source message: " + e.source_message_id
-    : e.merchant + " · " + money(e.amount_minor, e.currency);
+  edit.elements.direction.value = e?.direction || "expense";
+  edit.elements.direction.disabled = !manual && !e.review_reason;
+  updateCategories(e?.income_category || e?.category || "");
+  edit.elements.description.value = e?.description || "";
+  $("edit-title").textContent = e ? "Transaction details" : "Add transaction";
+  $("save").textContent = e ? "Save changes" : "Add transaction";
+  $("edit-summary").textContent = !e
+    ? "Enter spending or income. Time is in Tashkent (UTC+05)."
+    : e.review_reason
+      ? "Source message: " + e.source_message_id
+      : (manual ? "Manual · " : "") +
+        e.merchant +
+        " · " +
+        money(e.amount_minor, e.currency);
   $("form-error").textContent = "";
-  for (const id of ["review-note", "review-fields", "dismiss"])
-    $(id).hidden = !e.review_reason;
+  for (const id of ["review-note", "dismiss"]) $(id).hidden = !e?.review_reason;
+  $("review-fields").hidden = !manual && !e.review_reason;
+  $("card-optional").hidden = !manual;
+  for (const key of [
+    "merchant",
+    "amount",
+    "currency",
+    "local_time",
+    "category",
+    "description",
+  ])
+    edit.elements[key].required = manual;
+  const date = edit.elements.local_time;
+  date.type = manual ? "datetime-local" : "text";
+  date.max = manual ? localInput(new Date().toISOString()) : "";
+  date.min = manual ? "2000-01-01T00:00" : "";
+  if (manual) {
+    edit.elements.merchant.value = e?.merchant || "";
+    edit.elements.amount.value = e
+      ? `${BigInt(e.amount_minor) / 100n}.${(BigInt(e.amount_minor) % 100n).toString().padStart(2, "0")}`
+      : "";
+    edit.elements.currency.value = e?.currency || "UZS";
+    edit.elements.card_suffix.value = e?.card_suffix || "";
+    date.value = localInput(e?.occurred_at || new Date().toISOString());
+  }
   $("editor").showModal();
 }
+$("add-transaction").onclick = () => openEditor();
 $("cancel").onclick = () => $("editor").close();
 async function save(dismiss = false) {
-  if (!selected) return;
+  if ((!selected && !creationId) || $("save").disabled) return;
+  const creating = !selected;
+  const manual = creating || selected.source === "manual";
   const body = {
-    version: selected.version,
+    version: selected?.version,
     [edit.elements.direction.value === "income"
       ? "income_category"
       : "category"]: edit.elements.category.value || null,
     description: edit.elements.description.value,
   };
+  if (manual) {
+    Object.assign(
+      body,
+      Object.fromEntries(
+        ["merchant", "amount", "currency", "card_suffix", "direction"].map(
+          (k) => [k, edit.elements[k].value],
+        ),
+      ),
+    );
+    body.local_time = apiLocalTime(edit.elements.local_time.value);
+    if (creating) body.id = creationId;
+  }
   if (dismiss) body.dismiss = true;
-  else if (selected.review_reason)
+  else if (selected?.review_reason)
     body.resolve = Object.fromEntries(
       [
         "merchant",
@@ -374,8 +432,8 @@ async function save(dismiss = false) {
   $("dismiss").disabled = true;
   $("form-error").textContent = "";
   try {
-    await api("/api/expenses/" + selected.id, {
-      method: "PATCH",
+    await api(creating ? "/api/expenses" : "/api/expenses/" + selected.id, {
+      method: creating ? "POST" : "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -384,6 +442,7 @@ async function save(dismiss = false) {
     $("toast").hidden = false;
     setTimeout(() => ($("toast").hidden = true), 2500);
     await load();
+    if (location.hash === "#month") await loadMonth();
   } catch (e) {
     $("form-error").textContent = e.message;
   } finally {
@@ -447,9 +506,7 @@ function renderMonth() {
   const today = dayKey(Date.now()),
     firstTracked = activatedAt ? dayKey(activatedAt) : null;
   $("next-month").disabled = month >= tashkentMonth(Date.now());
-  $("prev-month").disabled = Boolean(
-    firstTracked && month <= firstTracked.slice(0, 7),
-  );
+  $("prev-month").disabled = month <= "2000-01";
   const all = monthData?.currencies ?? [];
   if (!all.some((c) => c.currency === monthCurrency))
     monthCurrency = (all.find((c) => c.currency === "UZS") ?? all[0])?.currency;
@@ -492,8 +549,11 @@ function renderMonth() {
     block.append(node("p", "Nothing yet", "figure spent none"));
   } else {
     block.append(figure(amount(data.spending_minor, cur), cur, "spent"));
-    if (trackedDays > 0) {
-      const avg = BigInt(data.spending_minor) / BigInt(trackedDays);
+    if (trackedDays > 0 && firstTracked) {
+      const trackedSpending = [...days.values()]
+        .filter((d) => d.date >= trackedFrom && d.date <= trackedTo)
+        .reduce((sum, d) => sum + BigInt(d.spending_minor), 0n);
+      const avg = trackedSpending / BigInt(trackedDays);
       block.append(
         node(
           "p",
@@ -610,7 +670,7 @@ function renderMonth() {
           node(
             "span",
             firstTracked && month < firstTracked.slice(0, 7)
-              ? "Tracking started later, so this month has no data."
+              ? "No spending recorded. Email tracking started later; manual history may be incomplete."
               : "No spending recorded this month yet.",
             "sub",
           ),
@@ -632,6 +692,14 @@ function renderMonth() {
         " across " + plural(info.d.count, "purchase"),
       );
       text.append(line);
+      if (firstTracked && key < firstTracked)
+        text.append(
+          node(
+            "span",
+            "Before email tracking; manual history may be incomplete.",
+            "sub",
+          ),
+        );
       box.append(text);
       const go = node("button", "Show transactions", "btn");
       go.type = "button";
@@ -754,12 +822,19 @@ function renderMonth() {
 function readoutText(key, state, d, cur) {
   if (state === "spent")
     return (
-      money(d.spending_minor, cur) + " across " + plural(d.count, "purchase")
+      money(d.spending_minor, cur) +
+      " across " +
+      plural(d.count, "purchase") +
+      (activatedAt && key < dayKey(activatedAt)
+        ? ". Before email tracking; manual history may be incomplete."
+        : "")
     );
   if (state === "future") return "Still to come.";
   if (state === "untracked")
     return (
-      "Not tracked. Tracking started " + longDay(dayKey(activatedAt)) + "."
+      "No spending recorded. Email tracking started " +
+      longDay(dayKey(activatedAt)) +
+      "."
     );
   return "No spending recorded.";
 }

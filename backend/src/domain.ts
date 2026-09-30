@@ -34,7 +34,9 @@ export interface Env {
 }
 export interface Expense {
   id: string;
-  source_message_id: string;
+  source_message_id: string | null;
+  source: "email" | "manual";
+  manual_request: string | null;
   received_at: number;
   occurred_at: string | null;
   merchant: string | null;

@@ -18,15 +18,25 @@ The bot uses a generated wallet-and-checkmark avatar, saved with its prompt in `
 
 **Gmail connected:** the dedicated inbox is verified with only Gmail read-only access. Its refresh token is deployed and stored locally in an ignored, owner-readable file. The prior account’s grant is revoked; the staged token file was removed.
 
-**Tracking active.** All 40 tests and the build pass. Production dashboard reads, filtered requests, totals, and health are verified. Activation remains 2026-09-24T16:19:45.972Z. No live transactions were edited during migration. See [SETUP.md](docs/SETUP.md) for historical integration acceptance checks.
+**Tracking active.** All 47 tests and the build pass. Production dashboard reads, filtered requests, totals, and health are verified. Activation remains 2026-09-24T16:19:45.972Z. No live transactions were edited during migration. See [SETUP.md](docs/SETUP.md) for historical integration acceptance checks.
 
 **Purchase format support:** `Pokupka` purchases accept optional commas between merchant/date, after the time, and before the balance. Regression checks cover plain text, HTML, conflicting copies, duplicate imports, notification retries, and reply association.
+
+## Manual entry (deployed 30 September 2026)
+
+Choose **Add transaction** in either view to record spending or income. Enter merchant/sender, amount, currency, Tashkent date/time, category, and description. UZS and the current Tashkent time are defaults; card suffix is optional for cash or other non-card entries. Amounts accept whole units or up to two decimal places. Saved entries carry a **Manual** label and support editing all fields. No Telegram messages are sent.
+
+Backdated entries (2000 onward) are supported, including before email activation; future times are rejected. Earlier entries contribute to totals, but their days and spending are excluded from the tracked-day average. The monthly calendar can navigate to earlier months and marks history before email tracking as potentially incomplete.
+
+Retry a failed save in the same open form to reuse its request ID. Repeated saves cannot create another record; reusing the ID with changed details returns a conflict. Opening a new form starts a new transaction. Manual entries and later email receipts are not automatically matched or merged.
+
+D1 migration `0004_manual_transactions.sql`, the updated backend, and the Vercel website are deployed. Production checks verify the Add transaction interface, creation validation, reads, and access protections; no live transactions were added or edited for smoke testing. Database foreign-key checks pass and the activation boundary is unchanged. See [SETUP.md](docs/SETUP.md#manual-transactions-deployment--30-september-2026) for deployment details.
 
 ## Dashboard views
 
 The default **All** view combines incoming and outgoing money, grouped by Tashkent day. Totals show **Net cash flow (income − spending)** with an income/spending split bar, separately for each currency and using the active filters. Net cash flow is not an account balance. Choose **Income** or **Spending** to see either side alone. The view, **Needs details**, date and category filters apply as soon as they change; search applies on Enter or the search button. Tap a transaction to edit it.
 
-**Month** (header switch, or `#month`) summarises one Tashkent calendar month at a time: spending, income and net cash flow for the month, a calendar shaded by each day's spending, and spending ranked by category. Days before activation are marked as not tracked rather than shown as zero. Hover, focus or tap a day to see its total. **Show transactions** and the category rows open the ledger with the matching filters. Amounts stay per currency; choose a currency when a month has more than one. Review and dismissed items are excluded. The daily amounts are also available as a table. This view is deployed.
+**Month** (header switch, or `#month`) summarises one Tashkent calendar month at a time: spending, income and net cash flow for the month, a calendar shaded by each day's spending, and spending ranked by category. Days before activation without spending are marked as not tracked; backdated entries are shown with an incomplete-history note. Hover, focus or tap a day to see its total. **Show transactions** and the category rows open the ledger with the matching filters. Amounts stay per currency; choose a currency when a month has more than one. Review and dismissed items are excluded. The daily amounts are also available as a table. This view is deployed.
 
 Incoming `Perevod na kartu` notifications are recognized as income. Choose **Salary**, **Reimbursement**, or **Other income** in Telegram or on the dashboard, then add a description. Salary instalments are separate transactions. Repayments contribute to income and net cash flow without changing gross spending. Other unrecognized bank operation labels still go to review; no salary schedule or category is inferred.
 
@@ -79,7 +89,7 @@ Public OAuth information pages are available on the backend at `/about`, `/priva
 
 ## Validation
 
-All 41 automated tests pass. `npm test` covers parsing, HTML/plain MIME alternatives, duplicate ingestion, pagination, activation boundaries, money, timezone dates, crossed replies, duplicate updates, delivery retries, authorization recovery, review handling, month insights (Tashkent day and month boundaries, exact sums, exclusions), website writes, and unauthorized requests. `npm run build` type-checks TypeScript, dry-runs the backend Worker bundle, and validates the generated Vercel dashboard and adapter. The D1 migration has also been applied locally with Wrangler.
+All 47 automated tests pass. `npm test` covers parsing, HTML/plain MIME alternatives, duplicate ingestion, pagination, activation boundaries, money, timezone dates, crossed replies, duplicate updates, delivery retries, authorization recovery, review handling, month insights (Tashkent day and month boundaries, exact sums, exclusions), website writes, and unauthorized requests. `npm run build` type-checks TypeScript, dry-runs the backend Worker bundle, and validates the generated Vercel dashboard and adapter. All four D1 migrations passed locally with `npm run db:migrate:local`. Manual-entry checks cover duplicate/retried creation, persistence failures, migration rollback and preserved reply links, exact amounts, income, validation, edits, and same-origin writes.
 
 Synthetic checks also cover history-reset rollback and retries, stale Telegram interactions, exact activation boundaries, duplicate polling, and delivery retries. Live post-switch checks confirm owner dashboard access, an empty transaction list, no outstanding notifications, successful scheduled Gmail sync, and rejection of anonymous API/webhook requests. Transaction classification and daily reminders on the new inbox remain live acceptance checks.
 

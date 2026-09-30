@@ -225,3 +225,14 @@ Redeployed `website` to Vercel production with the Month view (deployment `perso
 ## Dashboard redeploy (category strip) — 30 September 2026
 
 Redeployed `website` to Vercel production with the Month view category strip and a centred month title (deployment `personal-expenses-c8kr0tpdg-spartak5.vercel.app`, aliased to https://personal-expenses-liard-chi.vercel.app). All 41 tests and the full build passed first. Anonymous `/`, `/api/expenses` (including `view=income`), `/api/totals`, `/api/health`, and `/api/insights?month=2026-09` return 200; `/api/activate` returns 404; the served page contains the new strip. Read-only checks only; no live transactions were edited. The backend was not redeployed.
+
+
+## Manual transactions deployment — 30 September 2026
+
+The owner approved publishing manual entry, then committing and pushing the implementation. All 47 automated tests and the full build passed before deployment. Applied D1 migration `0004_manual_transactions.sql` remotely; its 16 statements succeeded. Production `PRAGMA foreign_key_check` returned no violations. Populated-database preservation and migration rollback were verified with synthetic tests before deployment.
+
+Deployed Cloudflare Worker version `1dab22b4-97e6-4987-9706-3cf42e57473a`; the five-minute schedule is unchanged. Deployed Vercel production `dpl_EWwHm3po6gZjJSwYqzDZ1spR3786` (`personal-expenses-1w6608q8n-spartak5.vercel.app`), aliased to https://personal-expenses-liard-chi.vercel.app. The CLI deployment used explicit `--scope spartak5` after an unscoped attempt returned Not authorized. A temporary npm cache avoided local cache permission errors; no credentials were changed.
+
+The served page contains Add transaction and retry-safe creation code. Anonymous page, expenses (including income filter), totals, health, and September insights return 200. A same-origin empty creation request returns 400 without creating a record, cross-origin creation returns 403, administrative activation remains 404, and unauthenticated backend API/webhook calls return 401. Activation remains `2026-09-24T16:19:45.972Z`; Gmail sync reports no error. No live transactions were added or edited for smoke testing. Manual cash/income creation, editing, mobile/desktop forms, and backdated monthly totals were verified in the synthetic preview.
+
+Future deployments should apply pending D1 migrations before the backend, then deploy the website from `website` using `vercel --prod --yes --scope spartak5`. For frontend rollback, use Vercel deployment history. Keep the applied schema migration; do not reverse it or remove manual transaction data to roll back the interface.

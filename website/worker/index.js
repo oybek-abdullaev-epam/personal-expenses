@@ -11,15 +11,16 @@ export default {
         )
       )
         return response({ error: "Not found" }, 404);
-      if (
-        request.method !==
-        (/^\/api\/expenses\/[a-f0-9-]{36}$/.test(url.pathname)
-          ? "PATCH"
-          : "GET")
-      )
+      const writing = request.method === "PATCH" || request.method === "POST";
+      const allowed = /^\/api\/expenses\/[a-f0-9-]{36}$/.test(url.pathname)
+        ? ["PATCH"]
+        : url.pathname === "/api/expenses"
+          ? ["GET", "POST"]
+          : ["GET"];
+      if (!allowed.includes(request.method))
         return response({ error: "Method not allowed" }, 405);
       if (
-        request.method === "PATCH" &&
+        writing &&
         (request.headers.get("Origin") !== url.origin ||
           !request.headers.get("Content-Type")?.startsWith("application/json"))
       )
@@ -35,7 +36,7 @@ export default {
           503,
         );
       let body;
-      if (request.method === "PATCH") {
+      if (writing) {
         body = await request.text();
         if (new TextEncoder().encode(body).length > 8000)
           return response({ error: "Request too large" }, 413);

@@ -70,3 +70,36 @@ export async function lock(env: Env, name: string, now: number, ttl: number) {
   ).run();
   return r.meta.changes ? token : null;
 }
+
+export async function saveManual(
+  env: Env,
+  id: string,
+  details: ReturnType<typeof import("./manual").manualDetails>,
+  now: number,
+) {
+  const snapshot = JSON.stringify(details);
+  const result = await sql(
+    env,
+    `INSERT INTO expenses (id,source,manual_request,received_at,occurred_at,merchant,card_suffix,amount_minor,currency,direction,category,income_category,description)
+     VALUES (?,'manual',?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`,
+    id,
+    snapshot,
+    now,
+    details.occurred_at,
+    details.merchant,
+    details.card_suffix as string | null,
+    details.amount_minor,
+    details.currency,
+    details.direction,
+    details.category,
+    details.income_category,
+    details.description,
+  ).run();
+  const expense = (await getExpense(env, id))!;
+  return {
+    expense,
+    created: Boolean(result.meta.changes),
+    conflict:
+      expense.source !== "manual" || expense.manual_request !== snapshot,
+  };
+}

@@ -30,7 +30,7 @@ export function message(
     },
   };
 }
-export function setup() {
+export function setup(migrateManual = true) {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys=ON");
   sqlite.exec(
@@ -54,6 +54,16 @@ export function setup() {
       "utf8",
     ),
   );
+  if (migrateManual)
+    sqlite.exec(
+      readFileSync(
+        new URL(
+          "../backend/migrations/0004_manual_transactions.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
   class Statement {
     values: unknown[] = [];
     constructor(public query: string) {}
