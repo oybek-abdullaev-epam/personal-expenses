@@ -905,8 +905,10 @@
       }
       .month-nav h2 {
         flex: 1;
+        min-width: 0;
+        text-align: center;
         font-family: var(--display);
-        font-size: 24px;
+        font-size: clamp(20px, 6.4vw, 24px);
         font-weight: 700;
         letter-spacing: -0.01em;
       }
@@ -1227,6 +1229,33 @@
       .cat-row.pending .cat-name {
         color: var(--saffron-ink);
       }
+      /* The whole month in one strip, in list order */
+      .cat-strip {
+        display: flex;
+        gap: 2px;
+        height: 12px;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .cat-strip[hidden] {
+        display: none;
+      }
+      .cat-strip span {
+        min-width: 3px;
+        background: var(--lapis);
+        transition: opacity 160ms;
+      }
+      .cat-strip .pending {
+        background: var(--pending-mark);
+      }
+      .cat-strip.focus span:not(.on) {
+        opacity: 0.35;
+      }
+      .cat-note {
+        margin: 10px 0 14px;
+        color: var(--ink-2);
+        font-size: 14px;
+      }
       .panel .empty {
         padding: 28px 8px;
       }
@@ -1424,6 +1453,8 @@
           <div class="panel-head">
             <h2 id="cats-title">Where it went</h2>
           </div>
+          <div class="cat-strip" id="cat-strip" aria-hidden="true" hidden></div>
+          <p class="cat-note" id="cat-note" hidden></p>
           <ol class="cats" id="cats"></ol>
         </section>
       </div>

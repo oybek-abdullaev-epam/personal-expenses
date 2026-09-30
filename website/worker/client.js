@@ -681,9 +681,33 @@ function renderMonth() {
   }
   const top = list.length ? BigInt(list[0].spending_minor) : 1n,
     total = data ? BigInt(data.spending_minor) : 1n;
+  const strip = $("cat-strip"),
+    note = $("cat-note");
+  strip.replaceChildren();
+  strip.classList.remove("focus");
+  strip.hidden = note.hidden = !list.length;
+  const catName = (c) => (c.category === null ? "Needs category" : c.category);
+  if (list.length === 1) note.textContent = "All in " + catName(list[0]);
+  else if (list.length) {
+    // Fewest leading categories that cover half the month, at most three.
+    let sum = 0n,
+      n = 0;
+    while (n < 3 && n < list.length && sum * 2n < total)
+      sum += BigInt(list[n++].spending_minor);
+    const names = list.slice(0, n).map(catName);
+    note.textContent =
+      (names.length > 1
+        ? names.slice(0, -1).join(", ") + " and " + names.at(-1) + " are "
+        : names[0] + " is ") +
+      Math.round(Number((sum * 1000n) / total) / 10) +
+      "% of spending";
+  }
   for (const c of list) {
     const value = BigInt(c.spending_minor),
       pending = c.category === null;
+    const seg = node("span", undefined, pending ? "pending" : undefined);
+    seg.style.flex = Number((value * 10000n) / total) / 100 + " 1 0";
+    strip.append(seg);
     const row = node(
       "button",
       undefined,
@@ -717,6 +741,11 @@ function renderMonth() {
         ...monthRange(),
         ...(pending ? { needsDetails: true } : { category: c.category }),
       });
+    row.onmouseenter = row.onfocus = () => {
+      for (const s of strip.children) s.classList.toggle("on", s === seg);
+      strip.classList.add("focus");
+    };
+    row.onmouseleave = row.onblur = () => strip.classList.remove("focus");
     const li = node("li");
     li.append(row);
     cats.append(li);

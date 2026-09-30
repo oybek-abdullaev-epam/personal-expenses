@@ -221,3 +221,7 @@ Redeployed the Cloudflare Worker (`npm run deploy:backend`), version `e17babd6-4
 ## Dashboard redeploy — 30 September 2026
 
 Redeployed `website` to Vercel production with the Month view (deployment `personal-expenses-70bqjw9ap-spartak5.vercel.app`, aliased to https://personal-expenses-liard-chi.vercel.app), after the backend redeploy the same day. All 41 tests and the full build passed first. Anonymous `/`, `/api/expenses` (including `view=income`), `/api/totals`, `/api/health`, and `/api/insights?month=2026-09` return 200; `/api/activate` returns 404; the direct Cloudflare `/api/expenses` returns 401. Read-only checks only; no live transactions were edited. The backend was not redeployed in this step.
+
+## Dashboard redeploy (category strip) — 30 September 2026
+
+Redeployed `website` to Vercel production with the Month view category strip and a centred month title (deployment `personal-expenses-c8kr0tpdg-spartak5.vercel.app`, aliased to https://personal-expenses-liard-chi.vercel.app). All 41 tests and the full build passed first. Anonymous `/`, `/api/expenses` (including `view=income`), `/api/totals`, `/api/health`, and `/api/insights?month=2026-09` return 200; `/api/activate` returns 404; the served page contains the new strip. Read-only checks only; no live transactions were edited. The backend was not redeployed.
