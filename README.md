@@ -84,3 +84,5 @@ All 41 automated tests pass. `npm test` covers parsing, HTML/plain MIME alternat
 Synthetic checks also cover history-reset rollback and retries, stale Telegram interactions, exact activation boundaries, duplicate polling, and delivery retries. Live post-switch checks confirm owner dashboard access, an empty transaction list, no outstanding notifications, successful scheduled Gmail sync, and rejection of anonymous API/webhook requests. Transaction classification and daily reminders on the new inbox remain live acceptance checks.
 
 [PLAN.md](PLAN.md) contains the agreed scope; [docs/SETUP.md](docs/SETUP.md) contains deployment and live acceptance steps.
+
+[Future plans](future-plans/README.md) collects unscheduled ideas, proposals, implementation tickets, and risks. These documents describe future work, not implemented features.
