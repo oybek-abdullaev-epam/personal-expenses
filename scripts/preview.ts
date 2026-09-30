@@ -86,6 +86,22 @@ for (const [day, merchant, amount, category] of spread) {
     m.id,
   ).run();
 }
+// A non-UZS, non-round amount shows the currency tag and kept cents.
+const usd = message(
+  "synthetic-usd",
+  fixture
+    .replaceAll("SAMPLE TAXI", "SAMPLE APP STORE")
+    .replaceAll("22.09.26", "21.09.26")
+    .replaceAll("30500.00 UZS", "12.99 USD"),
+);
+await saveMessage(env, usd, parseEmail(usd), now);
+await sql(
+  env,
+  "UPDATE expenses SET category=?,description=? WHERE source_message_id=?",
+  "Entertainment",
+  "Synthetic subscription",
+  usd.id,
+).run();
 const m = message("synthetic-review", "Unsupported synthetic message");
 await saveMessage(env, m, parseEmail(m), now);
 await sql(

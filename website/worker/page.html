@@ -202,7 +202,7 @@
       }
       .side {
         display: grid;
-        gap: 20px;
+        gap: 16px;
         align-content: start;
         min-width: 0;
       }
@@ -264,9 +264,16 @@
       }
       #refresh {
         flex: none;
-        min-height: 40px;
-        padding: 8px 14px;
+        min-height: 44px;
+        margin-right: -10px;
+        padding: 0 10px;
+        border-color: transparent;
+        background: transparent;
+        color: var(--lapis);
         font-size: 14px;
+      }
+      #refresh:hover {
+        background: var(--lapis-wash);
       }
       .error {
         background: var(--anor-wash);
@@ -279,7 +286,7 @@
       /* Totals: net figure and income/spending split */
       .totals {
         display: grid;
-        gap: 28px;
+        gap: 24px;
       }
       .total-label {
         font-size: 15px;
@@ -375,6 +382,39 @@
         font-size: 22px;
       }
 
+      /* Totals for a filtered view */
+      .filtered {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 2px 14px;
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      .filtered-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .filtered .figure {
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .filtered .cur {
+        font-size: 12px;
+      }
+      /* One label beside a line per currency */
+      .filtered-totals {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: baseline;
+        gap: 4px 14px;
+      }
+      .filtered {
+        grid-column: 2;
+        margin: 0;
+      }
+
       /* Filters */
       .filters {
         display: grid;
@@ -426,7 +466,7 @@
       .toggles {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
       }
       .seg {
         display: flex;
@@ -435,7 +475,7 @@
         border: 0;
         border-radius: 14px;
         background: var(--line);
-        flex: 1 0 auto;
+        flex: 1 1 auto;
       }
       .seg label {
         flex: 1 0 auto;
@@ -452,9 +492,9 @@
         display: grid;
         place-items: center;
         min-height: 38px;
-        padding: 0 14px;
+        padding: 0 10px;
         border-radius: 11px;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
         color: var(--ink-2);
         white-space: nowrap;
@@ -477,10 +517,10 @@
         align-items: center;
         gap: 8px;
         min-height: 44px;
-        padding: 0 14px 0 12px;
+        padding: 0 12px 0 10px;
         border-radius: 14px;
         border: 1px solid var(--line-strong);
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
         white-space: nowrap;
       }
@@ -506,7 +546,7 @@
       .chip input:checked + span::after {
         content: "";
         position: absolute;
-        left: 18px;
+        left: 16px;
         top: 50%;
         width: 5px;
         height: 10px;
@@ -586,114 +626,122 @@
         margin: 0;
         padding: 0;
       }
+      /* Day: quiet sticky label, spending total on the right */
       .day h2 {
         position: sticky;
         top: 0;
         z-index: 1;
-        padding: 10px 20px 8px;
-        background: var(--sunk);
-        border-bottom: 1px solid var(--line);
-        font-size: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        padding: 14px 20px 4px;
+        background: var(--surface);
+        font-size: 13px;
         font-weight: 600;
         color: var(--ink-2);
       }
-      .day + .day h2 {
-        border-top: 1px solid var(--line);
+      .day:first-child h2 {
+        padding-top: 12px;
       }
+      .day-total {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0 10px;
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+      }
+      .day-total .cur {
+        margin-left: 0.3em;
+      }
+      .day ul {
+        padding-bottom: 6px;
+      }
+      /* Row: merchant and amount, then details and time */
       .tx {
-        position: relative;
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 4px 16px;
+        align-items: baseline;
+        gap: 2px 16px;
         width: 100%;
-        min-height: 72px;
-        padding: 14px 20px;
+        min-height: 60px;
+        padding: 10px 20px;
         border: 0;
         background: transparent;
         text-align: left;
         border-radius: 0;
       }
       .day li + li .tx {
-        border-top: 1px solid var(--line);
+        background-image: linear-gradient(var(--line), var(--line));
+        background-size: calc(100% - 20px) 1px;
+        background-position: 20px 0;
+        background-repeat: no-repeat;
       }
       .tx:hover {
-        background: var(--sunk);
+        background-color: var(--sunk);
       }
       .tx:focus-visible {
         outline-offset: -3px;
       }
-      .tx.needs::before,
-      .tx.review::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 10px;
-        bottom: 10px;
-        width: 4px;
-        border-radius: 0 4px 4px 0;
-        background: var(--saffron);
-      }
-      .tx-main {
-        display: grid;
-        gap: 3px;
-        min-width: 0;
-      }
       .merchant {
         font-size: 16px;
-        font-weight: 600;
-        overflow-wrap: anywhere;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
-      .tags {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: 2px 10px;
-        font-size: 15px;
-        min-width: 0;
+      .sub,
+      .when {
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      .sub {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .cat {
         font-weight: 600;
-        color: var(--lapis);
-      }
-      .cat.in {
-        color: var(--firuza);
-      }
-      .desc {
-        color: var(--ink-2);
-        overflow-wrap: anywhere;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      .flag {
-        font-size: 13px;
-        font-weight: 600;
-        padding: 2px 8px;
-        border-radius: 6px;
-        background: var(--saffron-wash);
-        color: var(--saffron-ink);
       }
       .missing {
         color: var(--saffron-ink);
+        font-weight: 600;
       }
-      .meta {
+      .needs .sub::before,
+      .review .sub::before {
+        content: "";
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: 7px;
+        border-radius: 50%;
+        background: var(--saffron);
+        vertical-align: 1px;
+      }
+      .review .sub {
+        color: var(--saffron-ink);
+        font-weight: 600;
+      }
+      .when {
         display: flex;
-        gap: 12px;
+        justify-content: flex-end;
+        gap: 8px;
         font-size: 13px;
-        color: var(--ink-2);
         font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .tag {
+        font-weight: 600;
       }
       .amt {
         text-align: right;
         font-size: 17px;
+        font-weight: 600;
         white-space: nowrap;
-        line-height: 1.25;
       }
       .amt .cur {
-        display: block;
         font-size: 12px;
-        margin: 2px 0 0;
       }
       .amt.in {
         color: var(--firuza);
@@ -701,13 +749,12 @@
       .amt.off {
         font-family: var(--text);
         font-size: 14px;
-        font-weight: 600;
         color: var(--ink-2);
       }
       @media (max-width: 380px) {
         .tx {
-          padding: 14px 16px;
-          gap: 4px 10px;
+          padding: 10px 16px;
+          gap: 2px 10px;
         }
         .day h2 {
           padding-inline: 16px;
@@ -869,12 +916,17 @@
       }
 
       /* View switch */
+      .dock {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-left: auto;
+      }
       .views {
         display: flex;
         padding: 3px;
         border-radius: 14px;
         background: var(--line);
-        margin-left: auto;
       }
       .views a {
         display: grid;
@@ -895,6 +947,186 @@
       @media (max-width: 559px) {
         .public {
           display: none;
+        }
+      }
+      #add-transaction svg,
+      .mini {
+        display: none;
+      }
+
+      /* Phones: slim top bar, navigation and Add in a bottom dock */
+      @media (max-width: 639px) {
+        body {
+          padding-bottom: calc(68px + env(safe-area-inset-bottom));
+        }
+        .bar {
+          flex-wrap: nowrap;
+          gap: 0;
+          padding: 4px 6px 4px 16px;
+        }
+        .brand {
+          flex: 1;
+          min-width: 0;
+          font-size: 18px;
+        }
+        .mini {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          min-width: 44px;
+          min-height: 44px;
+          padding: 0 10px;
+          border: 0;
+          border-radius: 12px;
+          background: transparent;
+          color: var(--ink-2);
+          font-size: 14px;
+          font-variant-numeric: tabular-nums;
+          position: relative;
+        }
+        .mini:hover {
+          background: var(--sunk);
+        }
+        .mini:disabled {
+          cursor: wait;
+        }
+        #sync-mini::before {
+          content: "";
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--line-strong);
+        }
+        #sync-mini[data-state="ok"]::before {
+          background: var(--firuza);
+        }
+        #sync-mini[data-state="warn"]::before {
+          background: var(--saffron);
+        }
+        #sync-mini[data-state="down"]::before {
+          background: var(--anor);
+        }
+        .mini svg {
+          display: block;
+          width: 22px;
+          height: 22px;
+          fill: none;
+          stroke: currentColor;
+          stroke-width: 2.2;
+          stroke-linecap: round;
+        }
+        #filter-toggle[aria-expanded="true"] {
+          color: var(--ink);
+          background: var(--sunk);
+        }
+        #filter-toggle.on::after {
+          content: "";
+          position: absolute;
+          top: 9px;
+          right: 8px;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--lapis);
+          box-shadow: 0 0 0 2px var(--surface);
+        }
+        .dock {
+          position: fixed;
+          z-index: 5;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          display: block;
+          margin: 0;
+          padding-bottom: env(safe-area-inset-bottom);
+          background: var(--surface);
+          border-top: 1px solid var(--line);
+        }
+        .dock .views {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          column-gap: 96px;
+          padding: 0;
+          border-radius: 0;
+          background: transparent;
+        }
+        .dock .views a {
+          position: relative;
+          min-height: 60px;
+          border-radius: 0;
+          font-size: 14px;
+        }
+        .dock .views a[aria-current="page"] {
+          background: transparent;
+          box-shadow: none;
+        }
+        .dock .views a[aria-current="page"]::after {
+          content: "";
+          position: absolute;
+          bottom: 10px;
+          left: 50%;
+          width: 20px;
+          height: 3px;
+          margin-left: -10px;
+          border-radius: 3px;
+          background: var(--lapis);
+        }
+        #add-transaction {
+          position: absolute;
+          top: 4px;
+          left: 50%;
+          width: 52px;
+          height: 52px;
+          min-height: 0;
+          margin-left: -26px;
+          padding: 0;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+        }
+        #add-transaction svg {
+          display: block;
+          width: 26px;
+          height: 26px;
+          fill: none;
+          stroke: currentColor;
+          stroke-width: 2.6;
+          stroke-linecap: round;
+        }
+        .add-label {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
+          white-space: nowrap;
+        }
+        #toast {
+          bottom: calc(80px + env(safe-area-inset-bottom));
+        }
+        .layout {
+          padding-top: 12px;
+          gap: 12px;
+        }
+        .side {
+          gap: 12px;
+        }
+        /* The healthy sync state is the top-bar dot; problems keep the line. */
+        .status,
+        #refresh {
+          display: none;
+        }
+        body:is([data-sync="warn"], [data-sync="down"], [data-sync="off"])
+          .status {
+          display: flex;
+        }
+        .more:not([open]),
+        .more summary {
+          display: none;
+        }
+        .more-body {
+          padding-top: 14px;
         }
       }
 
@@ -1302,11 +1534,32 @@
         </svg>
         My money
       </h1>
-      <nav class="views" aria-label="Views">
-        <a href="#" id="to-ledger" aria-current="page">Ledger</a
-        ><a href="#month" id="to-month">Month</a>
-      </nav>
-      <button class="btn primary" id="add-transaction">Add transaction</button>
+      <button type="button" class="mini" id="sync-mini">
+        <span id="sync-short"></span>
+      </button>
+      <button
+        type="button"
+        class="mini"
+        id="filter-toggle"
+        aria-label="Search and filters"
+        aria-controls="more-filters"
+        aria-expanded="false"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6h16M7 12h10M10 18h4" />
+        </svg>
+      </button>
+      <div class="dock">
+        <nav class="views" aria-label="Views">
+          <a href="#" id="to-ledger" aria-current="page">Ledger</a
+          ><a href="#month" id="to-month">Month</a>
+        </nav>
+        <button class="btn primary" id="add-transaction">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" /></svg
+          ><span class="add-label">Add transaction</span>
+        </button>
+      </div>
       <span class="public">Public · Tashkent</span>
     </header>
     <main class="layout" id="ledger-view">
@@ -1316,28 +1569,7 @@
           <button class="btn" id="refresh">Refresh</button>
         </div>
         <div id="error" class="error" role="alert" hidden></div>
-        <section
-          class="totals"
-          id="totals"
-          aria-label="Income, spending and net cash flow"
-        ></section>
         <form class="filters" id="filters" role="search">
-          <div class="search">
-            <label
-              ><span class="sr">Search</span
-              ><input
-                name="q"
-                placeholder="Merchant or description"
-                type="search"
-                enterkeyhint="search"
-            /></label>
-            <button type="submit" class="btn primary icon" aria-label="Search">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="10.5" cy="10.5" r="6.5" />
-                <path d="M15.5 15.5 20 20" />
-              </svg>
-            </button>
-          </div>
           <div class="toggles">
             <fieldset class="seg">
               <legend class="sr">Show</legend>
@@ -1362,8 +1594,28 @@
             >
           </div>
           <details class="more" id="more-filters">
-            <summary id="more-summary">Dates and category</summary>
+            <summary id="more-summary">Search, dates and category</summary>
             <div class="more-body">
+              <div class="search wide">
+                <label
+                  ><span class="sr">Search</span
+                  ><input
+                    name="q"
+                    placeholder="Merchant or description"
+                    type="search"
+                    enterkeyhint="search"
+                /></label>
+                <button
+                  type="submit"
+                  class="btn primary icon"
+                  aria-label="Search"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="10.5" cy="10.5" r="6.5" />
+                    <path d="M15.5 15.5 20 20" />
+                  </svg>
+                </button>
+              </div>
               <label>From<input name="from" type="date" /></label
               ><label>To<input name="to" type="date" /></label
               ><label class="wide"
@@ -1374,20 +1626,25 @@
             </div>
           </details>
         </form>
+        <section
+          class="filtered-totals"
+          id="totals"
+          aria-label="Totals for these filters"
+          hidden
+        ></section>
       </aside>
       <section class="ledger" aria-labelledby="ledger-title">
         <h2 class="sr" id="ledger-title">Transactions</h2>
         <ol class="days" id="rows"></ol>
         <div class="empty" id="empty" role="status">Loading transactions…</div>
         <div class="ledger-foot">
-          <span>Amounts stay in their original currency.</span
+          <span>Amounts in UZS unless marked.</span
           ><button class="btn" id="more" hidden>Load more</button>
         </div>
       </section>
       <p class="note">
         Transaction times are shown in Asia/Tashkent. Review items are excluded
-        from totals. Net cash flow is income minus spending; repayments are
-        included in income.
+        from totals.
       </p>
     </main>
     <main class="layout" id="month-view" hidden>
@@ -1417,7 +1674,8 @@
         <p class="month-note">
           Days are Tashkent calendar days. Backdated manual entries are included
           in totals; days before email tracking may be incomplete and are
-          excluded from the daily average. Review items are excluded.
+          excluded from the daily average. Review items are excluded. Net cash
+          flow is income minus spending; repayments are included in income.
         </p>
       </aside>
       <div class="month-main">

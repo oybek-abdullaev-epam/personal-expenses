@@ -37,8 +37,8 @@ const money = (minor, currency) => {
   return (
     (value < 0n ? "−" : "") +
     (n / 100n).toLocaleString("en-US") +
-    "." +
-    (n % 100n).toString().padStart(2, "0") +
+    // Whole amounts drop ".00"; any non-zero fraction is shown in full.
+    (n % 100n ? "." + (n % 100n).toString().padStart(2, "0") : "") +
     " " +
     currency
   );
@@ -90,74 +90,138 @@ function figure(text, currency, className) {
   n.append(text, node("span", currency, "cur"));
   return n;
 }
-function row(e) {
+// Display only: bank names arrive in capitals with a country suffix. The
+// editor keeps the raw merchant.
+function displayName(raw) {
+  const name = raw.replace(/[\s,]+UZ$/i, "").trim() || raw;
+  if (name !== name.toUpperCase()) return name;
+  return name.replace(/\p{L}+/gu, (w) =>
+    // Short or vowel-less words are likely initials, such as "KFC".
+    w.length <= 2 || !/[AEIOUY]/.test(w) ? w : w[0] + w.slice(1).toLowerCase(),
+  );
+}
+function row(e, showCard) {
   const income = e.direction === "income",
     review = Boolean(e.review_reason),
     label = income ? e.income_category : e.category,
     at = e.occurred_at || e.received_at;
+  const needs = !review && (!label || !e.description);
   const button = node(
     "button",
     undefined,
-    "tx" + (review ? " review" : !label || !e.description ? " needs" : ""),
+    "tx" + (review ? " review" : needs ? " needs" : ""),
   );
   button.type = "button";
-  const main = node("span", undefined, "tx-main"),
-    tags = node("span", undefined, "tags"),
-    meta = node("span", undefined, "meta");
-  main.append(
-    node("span", review ? "Review " : "Edit ", "sr"),
-    node("span", e.merchant || "Email needs review", "merchant"),
-    tags,
-    meta,
-  );
-  if (review) tags.append(node("span", "Review required", "flag"));
+  const sub = node("span", undefined, "sub"),
+    when = node("span", undefined, "when");
+  if (review) sub.append("Check the email");
   else {
-    tags.append(
+    sub.append(
       label
-        ? node("span", label, "cat" + (income ? " in" : ""))
-        : node("span", "Needs category", "flag"),
-      e.description
-        ? node("span", e.description, "desc")
-        : node("span", "Add a description", "missing"),
+        ? node("span", label, "cat")
+        : node(
+            "span",
+            e.description ? "Add a category" : "Add category and description",
+            "missing",
+          ),
     );
+    if (e.description) sub.append(" ", e.description);
+    else if (label)
+      sub.append(" ", node("span", "Add a description", "missing"));
   }
-  meta.append(node("span", clock(at)));
-  if (e.source === "manual") meta.append(node("span", "Manual"));
-  if (e.card_suffix) {
+  if (e.source === "manual") when.append(node("span", "Manual", "tag"));
+  if (showCard && e.card_suffix) {
     const card = node("span", "••" + e.card_suffix);
     card.prepend(node("span", "Card ending ", "sr"));
-    meta.append(card);
+    when.append(card);
+  }
+  when.append(node("span", clock(at)));
+  let amt;
+  if (review) amt = node("span", "Not included", "amt off");
+  else {
+    // UZS is the default and goes unmarked; other currencies keep their code.
+    amt = node(
+      "span",
+      (income ? "+" : "−") + money(e.amount_minor, e.currency).split(" ")[0],
+      "figure amt" + (income ? " in" : ""),
+    );
+    if (e.currency !== "UZS") amt.append(node("span", e.currency, "cur"));
+    else amt.append(node("span", " UZS", "sr"));
   }
   button.append(
-    main,
-    review
-      ? node("span", "Not included", "amt off")
-      : figure(
-          (income ? "+" : "−") +
-            money(e.amount_minor, e.currency).split(" ")[0],
-          e.currency,
-          "amt" + (income ? " in" : ""),
-        ),
+    node("span", review ? "Review " : "Edit ", "sr"),
+    node(
+      "span",
+      e.merchant ? displayName(e.merchant) : "Email needs review",
+      "merchant",
+    ),
+    amt,
+    sub,
+    when,
   );
+  if (e.merchant) button.title = e.merchant;
   button.onclick = () => openEditor(e);
   const li = node("li");
   li.append(button);
   return li;
 }
+function dayHeader(label, spent) {
+  const h = node("h2");
+  h.append(node("span", label));
+  const sums = [...spent].filter(([, v]) => v > 0n);
+  if (sums.length) {
+    const total = node("span", undefined, "day-total");
+    total.append(node("span", "Spent ", "sr"));
+    for (const [cur, v] of sums) {
+      const part = node("span", "−" + money(v, cur).split(" ")[0]);
+      if (cur !== "UZS") part.append(node("span", cur, "cur"));
+      total.append(part);
+    }
+    h.append(total);
+  }
+  return h;
+}
 function render() {
   $("rows").replaceChildren();
-  let list;
+  const showCard =
+    new Set(expenses.map((e) => e.card_suffix).filter(Boolean)).size > 1;
+  const days = [];
   for (const e of expenses) {
-    const at = e.occurred_at || e.received_at;
-    if (!list || list.dataset.day !== dayKey(at)) {
-      const day = node("li", undefined, "day");
-      list = node("ul");
-      list.dataset.day = dayKey(at);
-      day.append(node("h2", dayLabel(at)), list);
-      $("rows").append(day);
+    const key = dayKey(e.occurred_at || e.received_at);
+    let day = days.at(-1);
+    if (!day || day.key !== key) {
+      day = {
+        key,
+        at: e.occurred_at || e.received_at,
+        items: [],
+        spent: new Map(),
+        spends: 0,
+      };
+      days.push(day);
     }
-    list.append(row(e));
+    day.items.push(e);
+    if (e.direction !== "income" && !e.review_reason) {
+      day.spends++;
+      day.spent.set(
+        e.currency,
+        (day.spent.get(e.currency) ?? 0n) + BigInt(e.amount_minor),
+      );
+    }
   }
+  days.forEach((d, i) => {
+    const li = node("li", undefined, "day"),
+      list = node("ul");
+    list.dataset.day = d.key;
+    for (const e of d.items) list.append(row(e, showCard));
+    // A lone spend already shows its amount, and the last day may continue on
+    // the next page, so neither gets a total.
+    const partial = i === days.length - 1 && nextOffset !== null;
+    li.append(
+      dayHeader(dayLabel(d.at), partial || d.spends < 2 ? new Map() : d.spent),
+      list,
+    );
+    $("rows").append(li);
+  });
   $("empty").hidden = expenses.length > 0;
   const empty = [
     node("strong", "No transactions to show"),
@@ -180,78 +244,57 @@ function render() {
   $("empty").replaceChildren(...empty);
   $("more").hidden = nextOffset === null;
 }
-let animated = false,
-  activatedAt = null;
+let activatedAt = null;
+// The ledger only totals a filtered view; month totals live in the Month tab.
 function renderTotals(totals) {
   const box = $("totals");
   box.replaceChildren();
-  const label = (params.size ? "Filtered net" : "Net") + " cash flow";
-  if (!totals.length) {
-    const block = node("div", undefined, "total");
-    block.append(
-      node("p", label, "total-label"),
-      node("p", "No totals", "figure net none"),
-    );
-    box.append(block);
-    return;
-  }
-  for (const total of totals) {
-    const block = node("div", undefined, "total"),
-      [net] = money(total.net_minor, total.currency).split(" "),
-      income = BigInt(total.income_minor),
-      spending = BigInt(total.amount_minor);
-    block.append(
-      node("p", label, "total-label"),
-      figure(net, total.currency, "net"),
-    );
-    const split = node("div", undefined, "split");
-    split.setAttribute("aria-hidden", "true");
-    if (income + spending > 0n) {
-      // Display proportion only; totals themselves stay exact BigInt strings.
-      const share = Number((income * 10000n) / (income + spending)) / 100;
-      for (const [cls, grow] of [
-        ["in", share],
-        ["out", 100 - share],
-      ])
-        if (grow > 0) {
-          const seg = node("span", undefined, cls);
-          seg.style.flex = grow + " 1 0";
-          split.append(seg);
-        }
-    }
-    const legend = node("dl", undefined, "legend");
-    for (const [cls, name, value] of [
-      ["in", "Income", total.income_minor],
-      ["out", "Spending", total.amount_minor],
+  const lines = [...totals]
+    .sort((a, b) => (b.currency === "UZS") - (a.currency === "UZS"))
+    .filter((t) => BigInt(t.amount_minor) || BigInt(t.income_minor));
+  box.hidden = !lines.length;
+  if (lines.length) box.append(node("span", "Filtered", "filtered-label"));
+  for (const total of lines) {
+    const line = node("p", undefined, "filtered");
+    for (const [name, value, sign] of [
+      ["Spending", total.amount_minor, "−"],
+      ["Income", total.income_minor, "+"],
     ]) {
-      const item = node("div", undefined, cls);
-      // The net figure above names the currency; the legend repeats only numbers.
-      const dd = node(
-        "dd",
-        money(value, total.currency).split(" ")[0],
+      if (!BigInt(value)) continue;
+      const part = node("span", name + " ");
+      const amt = node(
+        "span",
+        sign + money(value, total.currency).split(" ")[0],
         "figure",
       );
-      item.append(node("dt", name), dd);
-      legend.append(item);
+      if (total.currency !== "UZS")
+        amt.append(node("span", total.currency, "cur"));
+      part.append(amt);
+      line.append(part);
     }
-    block.append(split, legend);
-    box.append(block);
+    box.append(line);
   }
-  if (!animated) {
-    animated = true;
-    box.classList.add("grow");
-  } else box.classList.remove("grow");
 }
-function syncStatus(text, state) {
+function syncStatus(text, state, at) {
   $("sync").textContent = text;
   $("sync").dataset.state = state;
+  // Phones show only a dot and a short time; problems keep the full line.
+  const mini = $("sync-mini");
+  mini.dataset.state = state;
+  $("sync-short").textContent = !at
+    ? ""
+    : dayKey(at) === dayKey(Date.now())
+      ? clock(at)
+      : dayFormat({ day: "numeric", month: "short" }).format(new Date(at));
+  mini.setAttribute("aria-label", text + ". Refresh");
+  document.body.dataset.sync = state;
 }
 async function load(append = false) {
   // A new filter or refresh supersedes an in-flight load; Load more waits.
   if (append && loading) return;
   loading = true;
   const version = ++requestVersion;
-  $("refresh").disabled = true;
+  $("refresh").disabled = $("sync-mini").disabled = true;
   $("more").disabled = true;
   $("error").hidden = true;
   try {
@@ -259,7 +302,7 @@ async function load(append = false) {
     if (append && nextOffset !== null) query.set("offset", String(nextOffset));
     const [list, totals, health] = await Promise.all([
       api("/api/expenses?" + query),
-      api("/api/totals?" + params),
+      params.size ? api("/api/totals?" + params) : [],
       api("/api/health"),
     ]);
     if (version !== requestVersion) return;
@@ -287,8 +330,15 @@ async function load(append = false) {
           ? "Last email sync " + time(sync.last_success)
           : "Waiting for the first email sync.",
         failed ? "warn" : "ok",
+        sync.last_success,
       );
-    if (failed) $("sync").textContent += ". Telegram delivery needs attention";
+    if (failed) {
+      $("sync").textContent += ". Telegram delivery needs attention";
+      $("sync-mini").setAttribute(
+        "aria-label",
+        $("sync").textContent + ". Refresh",
+      );
+    }
   } catch (e) {
     if (version !== requestVersion) return;
     $("error").textContent = e.message;
@@ -304,7 +354,7 @@ async function load(append = false) {
   } finally {
     if (version === requestVersion) {
       loading = false;
-      $("refresh").disabled = false;
+      $("refresh").disabled = $("sync-mini").disabled = false;
       $("more").disabled = false;
     }
   }
@@ -314,16 +364,27 @@ form.onsubmit = (event) => {
   params = new URLSearchParams();
   for (const [key, value] of new FormData(form))
     if (value) params.set(key, key === "needsDetails" ? "true" : String(value));
-  const extra = ["from", "to", "category"].filter((k) => params.has(k)).length;
+  const extra = ["q", "from", "to", "category"].filter((k) =>
+    params.has(k),
+  ).length;
   $("more-summary").textContent =
-    "Dates and category" + (extra ? ` (${extra} active)` : "");
+    "Search, dates and category" + (extra ? ` (${extra} active)` : "");
+  if (params.has("q")) $("more-filters").open = true;
+  $("filter-toggle").classList.toggle("on", extra > 0);
   load();
 };
 // Toggles and pickers apply immediately; typed search applies on Enter or Apply.
 form.onchange = (event) => {
   if (event.target.name !== "q") form.requestSubmit();
 };
-$("refresh").onclick = () => load();
+$("refresh").onclick = $("sync-mini").onclick = () => load();
+$("filter-toggle").onclick = () =>
+  ($("more-filters").open = !$("more-filters").open);
+$("more-filters").ontoggle = () =>
+  $("filter-toggle").setAttribute(
+    "aria-expanded",
+    String($("more-filters").open),
+  );
 $("more").onclick = () => load(true);
 function updateCategories(value = "") {
   const select = edit.elements.category;
@@ -873,6 +934,7 @@ function route() {
   const monthView = location.hash === "#month";
   $("ledger-view").hidden = monthView;
   $("month-view").hidden = !monthView;
+  $("filter-toggle").hidden = $("sync-mini").hidden = monthView;
   for (const [id, current] of [
     ["to-ledger", !monthView],
     ["to-month", monthView],
