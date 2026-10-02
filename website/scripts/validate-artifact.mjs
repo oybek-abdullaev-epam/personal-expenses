@@ -12,5 +12,8 @@ const html = await response.text();
 assert(html.includes("Public · Tashkent"));
 assert(!html.includes("__PAGE_DOCUMENT__"));
 assert(!html.includes("__CLIENT_SCRIPT__"));
+assert(!html.includes("__TELEGRAM_SCRIPT__"));
+assert(html.includes("https://telegram.org/js/telegram-web-app.js?63"));
+assert(html.includes("function createTelegramAdapter"));
 assert(!html.includes("oai-authenticated"));
 console.log("Vercel adapter and generated dashboard validated");

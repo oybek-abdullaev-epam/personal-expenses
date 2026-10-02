@@ -6,8 +6,10 @@ Public viewing and editing with no login. The existing HTML/JavaScript dashboard
 
 Build with `npm run build`, then validate with `npm run validate`. Run `npm run preview` from the parent directory for a synthetic local preview. `npm run dev:website` from the parent runs the generated Web handler in Wrangler for local development; production runs on Vercel.
 
-Deploy this directory with Vercel CLI on a personal Hobby project, framework preset Other, Node.js 24. `vercel.json` rewrites requests to `api/index.js`; the adapter calls the generated `dist/server/index.js`. The build embeds `worker/page.html` and `worker/client.js`. `public` contains a robots exclusion file; application routes are served by the function.
+Deploy this directory with Vercel CLI on a personal Hobby project, framework preset Other, Node.js 24. `vercel.json` rewrites requests to `api/index.js`; the adapter calls the generated `dist/server/index.js`. The build embeds `worker/page.html`, `worker/telegram.js`, and `worker/client.js`. `public` contains a robots exclusion file; application routes are served by the function.
 
 Set `BACKEND_URL` and sensitive `BACKEND_TOKEN` as production-only Vercel environment variables. Do not set production credentials in preview environments or commit credentials. Disable production deployment protection so visitors need no Vercel login. Administrative backend operations are not exposed by the proxy.
 
 The old Sites deployment was deleted on 30 September 2026. Its obsolete hosting manifest was removed. Deploy only to Vercel; use Vercel deployment history for rollback. See [../docs/deployment.md](../docs/deployment.md) for deploy steps and [../docs/frontend.md](../docs/frontend.md) for how this directory works.
+
+The official Telegram SDK loads asynchronously; host theme, screen area, Back, and closing confirmation adapt the shared interface when available. Missing SDK or launch context retains the browser dashboard. There is no Telegram identity requirement. Unsaved forms receive close guards, uncertain saves retain their exact request for retry, and conflicts preserve the draft. Real Telegram Web launch verification is separate from these implemented presentation behaviors; native mobile clients are deferred.

@@ -1,6 +1,6 @@
 # MA-04: Telegram interface adaptation
 
-- **Status:** Ready
+- **Status:** Done
 - **Proposal:** [Telegram Mini App](../PLAN.md)
 - **Depends on:** [MA-01](MA-01-contracts.md)
 - **Risks:** [R03](../RISKS.md#r03)
@@ -31,12 +31,12 @@ Adding end-user authentication, changing transaction rules, implementing offline
 
 ## Acceptance checks
 
-- [ ] All existing screens work at mobile/desktop sizes, with visible focused inputs and reachable Save/Cancel controls when keyboards are open.
-- [ ] Theme changes, screen resize, Back, close/reopen, and capability gaps behave consistently on MA-01's required clients.
-- [ ] SDK failure or absent launch context retains ordinary dashboard use without a sign-in prompt; presentation/routing data never changes integration ownership.
-- [ ] Network failure and conflict states preserve appropriate input; an uncertain save is not silently repeated with a new request ID.
-- [ ] Synthetic preview and Telegram Web/browser visual evidence cover the required matrix; native-client checks remain deferred; automated checks verify affected behavior.
+- [x] All existing screens work at mobile/desktop sizes, with visible focused inputs and reachable Save/Cancel controls when keyboards are open.
+- [x] Theme changes, screen resize, Back, close/reopen, and capability gaps behave consistently on MA-01's required clients.
+- [x] SDK failure or absent launch context retains ordinary dashboard use without a sign-in prompt; presentation/routing data never changes integration ownership.
+- [x] Network failure and conflict states preserve appropriate input; an uncertain save is not silently repeated with a new request ID.
+- [x] Synthetic preview and Telegram Web/browser visual evidence cover the required matrix; native-client checks remain deferred; automated checks verify affected behavior.
 
 ## Completion evidence
 
-Not started. Record change references, synthetic screenshots, real-client versions, relevant checks, and unsupported cases.
+Verified 2026-10-02: [MA-04 evidence](../../../docs/verification/telegram-mini-app/MA-04.md). All 60 tests and full build pass; independent review is clear after adding a bounded request timeout. Ordinary-browser synthetic create/Month/draft controls and real Telegram Web K launch, Back, inline discard, close/reopen passed. Native clients and native keyboard behavior remain deferred by scope. Conflict draft retention is implemented; bounded latest-record review follows in MA-06.

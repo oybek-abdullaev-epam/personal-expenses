@@ -21,7 +21,12 @@ let expenses = [],
   selected = null,
   creationId = null,
   loading = false,
-  requestVersion = 0;
+  requestVersion = 0,
+  editorBaseline = "",
+  pendingSubmission = null,
+  saving = false,
+  formConflict = false,
+  editorConfirmation = null;
 const time = (value) =>
   new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Tashkent",
@@ -44,15 +49,27 @@ const money = (minor, currency) => {
   );
 };
 async function api(path, options = {}) {
-  const r = await fetch(path, options);
+  const r = await fetch(path, {
+    ...options,
+    signal: AbortSignal.timeout(20000),
+  });
   let data;
   try {
     data = await r.json();
   } catch {
-    throw Error("Unable to read the response. Please refresh.");
+    const error = Error("Unable to read the response. Please try again.");
+    error.status = r.status;
+    error.uncertain = true;
+    throw error;
   }
-  if (!r.ok)
-    throw Error(data.error || "Something went wrong. Please try again.");
+  if (!r.ok) {
+    const error = Error(
+      data.error || "Something went wrong. Please try again.",
+    );
+    error.status = r.status;
+    error.uncertain = r.status >= 500;
+    throw error;
+  }
   return data;
 }
 function node(tag, text, className) {
@@ -405,7 +422,111 @@ function apiLocalTime(input) {
   const [year, month, day] = date.split("-");
   return `${day}.${month}.${year.slice(2)} ${hour}`;
 }
+function editorValues() {
+  return JSON.stringify(
+    [...edit.elements]
+      .filter((field) => /^(INPUT|SELECT|TEXTAREA)$/.test(field.tagName))
+      .map((field) => [field.name, field.value]),
+  );
+}
+function editorDirty() {
+  return (
+    $("editor").open &&
+    (saving || Boolean(pendingSubmission) || editorValues() !== editorBaseline)
+  );
+}
+function editorState() {
+  for (const field of edit.elements)
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(field.tagName))
+      field.disabled =
+        saving ||
+        Boolean(pendingSubmission) ||
+        (field.name === "direction" &&
+          selected &&
+          selected.source !== "manual" &&
+          !selected.review_reason);
+  $("save").disabled = saving || formConflict || Boolean(editorConfirmation);
+  $("dismiss").disabled =
+    saving ||
+    formConflict ||
+    Boolean(pendingSubmission) ||
+    Boolean(editorConfirmation);
+  $("cancel").disabled = saving;
+  $("save").textContent = pendingSubmission
+    ? "Retry same save"
+    : selected
+      ? "Save changes"
+      : "Add transaction";
+  telegram.update();
+}
+function discardEditor() {
+  $("editor").close();
+  pendingSubmission = null;
+  formConflict = false;
+  editorConfirmation = null;
+  $("editor-confirm").hidden = true;
+  telegram.update();
+}
+function confirmEditor(action) {
+  editorConfirmation = action;
+  $("editor-confirm-message").textContent =
+    action === "dismiss"
+      ? "Dismiss this review item? It will remain excluded from totals."
+      : pendingSubmission
+        ? "The save may have succeeded. Leave this form? Check the Ledger before adding another transaction."
+        : "Discard your unsaved changes?";
+  $("confirm-discard").textContent =
+    action === "dismiss"
+      ? "Dismiss review"
+      : pendingSubmission
+        ? "Leave form"
+        : "Discard changes";
+  $("editor-confirm").hidden = false;
+  editorState();
+  $("keep-editing").focus();
+  $("editor-confirm").scrollIntoView({ block: "nearest" });
+}
+function closeEditor() {
+  if (saving) return;
+  if (editorDirty()) confirmEditor("close");
+  else discardEditor();
+}
+$("keep-editing").onclick = () => {
+  editorConfirmation = null;
+  $("editor-confirm").hidden = true;
+  editorState();
+  $("cancel").focus();
+};
+$("confirm-discard").onclick = () => {
+  if (saving) return;
+  if (editorConfirmation === "dismiss") {
+    editorConfirmation = null;
+    $("editor-confirm").hidden = true;
+    editorState();
+    save(true);
+  } else discardEditor();
+};
+const telegram = createTelegramAdapter({
+  onBack: () => {
+    if ($("editor").open) closeEditor();
+    else if (location.hash === "#month") location.hash = "";
+  },
+  canGoBack: () => $("editor").open || location.hash === "#month",
+  hasUnsavedChanges: editorDirty,
+});
+edit.addEventListener("input", () => telegram.update());
+edit.addEventListener("change", () => telegram.update());
+$("editor").addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeEditor();
+});
+$("editor").addEventListener("close", () => telegram.update());
 function openEditor(e = null) {
+  if ($("editor").open) return;
+  pendingSubmission = null;
+  formConflict = false;
+  editorConfirmation = null;
+  $("editor-confirm").hidden = true;
   selected = e;
   creationId = e ? null : crypto.randomUUID();
   const manual = !e || e.source === "manual";
@@ -450,10 +571,12 @@ function openEditor(e = null) {
     edit.elements.card_suffix.value = e?.card_suffix || "";
     date.value = localInput(e?.occurred_at || new Date().toISOString());
   }
+  editorBaseline = editorValues();
   $("editor").showModal();
+  editorState();
 }
 $("add-transaction").onclick = () => openEditor();
-$("cancel").onclick = () => $("editor").close();
+$("cancel").onclick = closeEditor;
 async function save(dismiss = false) {
   if ((!selected && !creationId) || $("save").disabled) return;
   const creating = !selected;
@@ -489,36 +612,57 @@ async function save(dismiss = false) {
         "direction",
       ].map((k) => [k, edit.elements[k].value]),
     );
-  $("save").disabled = true;
-  $("dismiss").disabled = true;
+  // Keep the exact body and request ID if delivery cannot be determined.
+  const submission = pendingSubmission || {
+    path: creating ? "/api/expenses" : "/api/expenses/" + selected.id,
+    method: creating ? "POST" : "PATCH",
+    body: JSON.stringify(body),
+  };
+  saving = true;
+  editorState();
   $("form-error").textContent = "";
   try {
-    await api(creating ? "/api/expenses" : "/api/expenses/" + selected.id, {
-      method: creating ? "POST" : "PATCH",
+    await api(submission.path, {
+      method: submission.method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: submission.body,
     });
+    pendingSubmission = null;
+    editorConfirmation = null;
+    $("editor-confirm").hidden = true;
+    saving = false;
+    editorBaseline = editorValues();
     $("editor").close();
+    telegram.update();
     $("toast").textContent = dismiss ? "Review dismissed" : "Transaction saved";
     $("toast").hidden = false;
     setTimeout(() => ($("toast").hidden = true), 2500);
     await load();
     if (location.hash === "#month") await loadMonth();
   } catch (e) {
-    $("form-error").textContent = e.message;
+    if (e.status === 409) {
+      formConflict = true;
+      $("form-error").textContent =
+        e.message +
+        " Your draft is kept here. Close this form and refresh the Ledger before reopening the transaction.";
+    } else if (e.uncertain || e.status === undefined) {
+      pendingSubmission = submission;
+      $("form-error").textContent =
+        "The save could not be confirmed. Your submitted details are kept. Retry the same save to check its result; do not add another transaction.";
+    } else {
+      pendingSubmission = null;
+      $("form-error").textContent = e.message;
+    }
   } finally {
-    $("save").disabled = false;
-    $("dismiss").disabled = false;
+    saving = false;
+    editorState();
   }
 }
 edit.onsubmit = (event) => {
   event.preventDefault();
   save();
 };
-$("dismiss").onclick = () => {
-  if (confirm("Dismiss this review item? It will remain excluded from totals."))
-    save(true);
-};
+$("dismiss").onclick = () => confirmEditor("dismiss");
 // Month view. Amounts stay exact BigInt strings; Number is used only for shading.
 const tashkentMonth = (value) => dayKey(value).slice(0, 7);
 let month = tashkentMonth(Date.now()),
@@ -931,6 +1075,7 @@ $("next-month").onclick = () => {
   loadMonth();
 };
 function route() {
+  telegram.update();
   const monthView = location.hash === "#month";
   $("ledger-view").hidden = monthView;
   $("month-view").hidden = !monthView;

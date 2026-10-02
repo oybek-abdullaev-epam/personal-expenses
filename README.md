@@ -53,3 +53,7 @@ New to the code? Start at **[docs/README.md](docs/README.md)**.
 | [History](docs/history.md)                             | Dated deployment and status records                   |
 
 The agreed scope is in [PLAN.md](PLAN.md), and the project rules are in [AGENTS.md](AGENTS.md). The live checks still outstanding are listed in [next_steps.md](next_steps.md). Unscheduled ideas are in [future-plans/](future-plans/README.md); these are proposals, not implemented features.
+
+## Telegram Mini App implementation
+
+The feature branch includes the shared Telegram presentation adapter, theme/viewport/Back handling, inline discard controls, bounded network requests and exact uncertain-save retries. These passed synthetic tests and an unaliased candidate launch in Telegram Web K. The existing stable dashboard and bot menu have not been switched yet. See [implementation tickets](future-plans/telegram-mini-app/TICKETS.md) and [verification evidence](docs/verification/telegram-mini-app/MA-04.md).

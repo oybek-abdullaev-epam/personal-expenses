@@ -6,6 +6,11 @@
     <meta name="description" content="Public income and spending dashboard" />
     <meta name="color-scheme" content="light dark" />
     <title>Money dashboard</title>
+    <script
+      id="telegram-sdk"
+      async
+      src="https://telegram.org/js/telegram-web-app.js?63"
+    ></script>
     <style>
       :root {
         --porcelain: #edf1f5;
@@ -42,7 +47,7 @@
         background: var(--porcelain);
       }
       @media (prefers-color-scheme: dark) {
-        :root {
+        :root:not([data-telegram-theme="light"]) {
           --porcelain: #0a1626;
           --surface: #10213a;
           --sunk: #0d1b30;
@@ -69,11 +74,41 @@
           color-scheme: dark;
         }
       }
+      :root[data-telegram-theme="dark"] {
+        --porcelain: #0a1626;
+        --surface: #10213a;
+        --sunk: #0d1b30;
+        --ink: #e6edf6;
+        --ink-2: #a5b4c8;
+        --line: #223756;
+        --line-strong: #3a5378;
+        --lapis: #86a9ee;
+        --lapis-wash: #1a3159;
+        --on-lapis: #0a1626;
+        --firuza: #4acfbe;
+        --anor: #ff8a9c;
+        --anor-wash: #3d1a22;
+        --saffron: #e8a93a;
+        --saffron-wash: #3a2d10;
+        --saffron-ink: #f6cd78;
+        --scrim: #000000b3;
+        --heat-1: #3b2336;
+        --heat-2: #5c2b42;
+        --heat-3: #8a3a55;
+        --heat-4: #cc5a74;
+        --on-heat-4: #0a1626;
+        --pending-mark: #e8a93a;
+        color-scheme: dark;
+      }
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
+        min-height: var(--app-stable-height, 100dvh);
+        padding-top: var(--app-inset-top, 0px);
+        padding-left: var(--app-inset-left, 0px);
+        padding-right: var(--app-inset-right, 0px);
         background: var(--porcelain);
         color: var(--ink);
         line-height: 1.45;
@@ -799,7 +834,8 @@
         border: 0;
         padding: 0;
         width: min(560px, calc(100% - 32px));
-        max-height: min(90vh, 900px);
+        max-height: min(calc(var(--app-height, 100dvh) - 32px), 900px);
+        overflow: auto;
         border-radius: 22px;
         background: var(--surface);
         color: var(--ink);
@@ -862,6 +898,19 @@
       #form-error:empty {
         display: none;
       }
+      #editor-confirm {
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--sunk);
+        padding: 14px;
+        display: grid;
+        gap: 12px;
+      }
+      .confirm-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
       .actions {
         display: flex;
         justify-content: flex-end;
@@ -885,7 +934,9 @@
           width: 100%;
           max-width: 100%;
           margin: auto 0 0;
-          max-height: 92vh;
+          max-height: calc(
+            var(--app-height, 100dvh) - max(12px, var(--app-inset-top, 0px))
+          );
           border-radius: 22px 22px 0 0;
         }
         .editor[open] {
@@ -896,7 +947,11 @@
         }
         .editor .actions {
           margin: 0 -16px;
-          padding: 12px 16px max(16px, env(safe-area-inset-bottom));
+          padding: 12px 16px
+            max(
+              16px,
+              max(env(safe-area-inset-bottom), var(--app-inset-bottom, 0px))
+            );
         }
         .actions .btn {
           flex: 1;
@@ -957,7 +1012,10 @@
       /* Phones: slim top bar, navigation and Add in a bottom dock */
       @media (max-width: 639px) {
         body {
-          padding-bottom: calc(68px + env(safe-area-inset-bottom));
+          padding-bottom: calc(
+            68px +
+              max(env(safe-area-inset-bottom), var(--app-inset-bottom, 0px))
+          );
         }
         .bar {
           flex-wrap: nowrap;
@@ -1039,7 +1097,10 @@
           bottom: 0;
           display: block;
           margin: 0;
-          padding-bottom: env(safe-area-inset-bottom);
+          padding-bottom: max(
+            env(safe-area-inset-bottom),
+            var(--app-inset-bottom, 0px)
+          );
           background: var(--surface);
           border-top: 1px solid var(--line);
         }
@@ -1103,7 +1164,10 @@
           white-space: nowrap;
         }
         #toast {
-          bottom: calc(80px + env(safe-area-inset-bottom));
+          bottom: calc(
+            80px +
+              max(env(safe-area-inset-bottom), var(--app-inset-bottom, 0px))
+          );
         }
         .layout {
           padding-top: 12px;
@@ -1495,7 +1559,10 @@
 
       #toast {
         position: fixed;
-        bottom: max(24px, env(safe-area-inset-bottom));
+        bottom: max(
+          24px,
+          max(env(safe-area-inset-bottom), var(--app-inset-bottom, 0px))
+        );
         left: 50%;
         transform: translateX(-50%);
         background: var(--ink);
@@ -1777,6 +1844,22 @@
           ></textarea>
         </label>
         <div id="form-error" role="alert"></div>
+        <div
+          id="editor-confirm"
+          role="group"
+          aria-labelledby="editor-confirm-message"
+          hidden
+        >
+          <p id="editor-confirm-message" role="status"></p>
+          <div class="confirm-buttons">
+            <button type="button" class="btn" id="keep-editing">
+              Keep editing
+            </button>
+            <button type="button" class="btn danger" id="confirm-discard">
+              Discard changes
+            </button>
+          </div>
+        </div>
         <div class="actions">
           <button type="button" id="dismiss" class="btn danger" hidden>
             Dismiss review</button
@@ -1789,6 +1872,7 @@
     </dialog>
     <div id="toast" role="status" hidden></div>
     <script>
+      __TELEGRAM_SCRIPT__;
       __CLIENT_SCRIPT__;
     </script>
   </body>

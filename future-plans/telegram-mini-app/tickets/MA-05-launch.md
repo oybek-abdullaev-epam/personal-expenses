@@ -1,6 +1,6 @@
 # MA-05: Bot launch integration
 
-- **Status:** Backlog
+- **Status:** Ready
 - **Proposal:** [Telegram Mini App](../PLAN.md)
 - **Depends on:** [MA-04](MA-04-interface.md)
 - **Risks:** [R03](../RISKS.md#r03), [R04](../RISKS.md#r04)

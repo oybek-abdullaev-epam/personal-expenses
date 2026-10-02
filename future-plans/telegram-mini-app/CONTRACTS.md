@@ -62,6 +62,8 @@ Source audit on 2026-10-01, before Mini App implementation:
 
 Deploy a compatible backend before the frontend that calls its new route. Verify anonymous browser access and protected backend/admin/webhook boundaries before configuring launch. Restore captured menu settings and remove/disable app-button configuration if launch fails; use Vercel's previous production deployment and a compatible backend rollback if necessary. Do not restore/reset D1 or modify activation, Gmail cursor, pending replies, or outbox state to roll back presentation. Keep Gmail recovery in the ordinary browser through existing owner-operated tools.
 
+For MA-04/MA-05 real-browser verification, create a candidate in the existing Vercel project with `vercel --prod --skip-domain --yes`: production environment variables are available, but the stable alias is not promoted. Verify public access, then send only a tracked disposable launch message to the owner. This is authorized test setup, not the final live-menu cutover. A production backend change still waits for the complete compatible candidate.
+
 MA-07 records automated checks and recovery rehearsal. MA-08 executes the already authorized controlled rollout and records actual deployment/real-bot results in `docs/history.md`; `next_steps.md` holds deferred checks. No additional approval gate is introduced by this document.
 
 ## Official reference check

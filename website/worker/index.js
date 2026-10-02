@@ -86,7 +86,7 @@ export default {
         "X-Content-Type-Options": "nosniff",
         "Referrer-Policy": "no-referrer",
         "Content-Security-Policy":
-          "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'",
+          "default-src 'none'; script-src 'unsafe-inline' https://telegram.org/js/telegram-web-app.js; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'",
       },
     });
   },

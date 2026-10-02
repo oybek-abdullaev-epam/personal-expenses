@@ -1,6 +1,6 @@
 # Frontend: the public dashboard
 
-This page explains how the website in [`website/`](../website) is built, how its proxy guards the backend, how the browser code is organised, and how to preview UI changes. There is no framework and no bundler, just three source files and a 20-line build script.
+This page explains how the website in [`website/`](../website) is built, how its proxy guards the backend, how the browser code is organised, and how to preview UI changes. There is no framework and no bundler, four source files and a small build script.
 
 ## How a request is served
 
@@ -21,16 +21,16 @@ flowchart LR
 
 The dashboard has no login. What protects the backend is this list of rules in `worker/index.js`:
 
-| Rule                | Behaviour                                                                                                                                                                                                  |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Path allowlist      | Only `^/api/(expenses(/<36 chars [a-f0-9-]>)?\|totals\|insights\|health)$` is forwarded. Everything else under `/api/` returns **404**, including `/api/activate`. The id must be **lowercase**.           |
-| Method table        | `/api/expenses/:id` accepts PATCH only. `/api/expenses` accepts GET and POST. Everything else accepts GET only. Any other method returns **405**.                                                          |
-| Same-origin writes  | POST and PATCH need `Origin` equal to the site's own origin **and** `Content-Type: application/json`, otherwise **403**. This blocks cross-site form posts (CSRF).                                         |
-| Body limit          | Write bodies are limited to 8000 UTF-8 bytes (**413**).                                                                                                                                                    |
-| Configuration check | If `BACKEND_URL` or `BACKEND_TOKEN` is missing, it returns **503** "Connect the expense service…". If `BACKEND_URL` isn't `https://`, it also returns 503.                                                 |
-| Credential handling | It adds `Authorization: Bearer …` on the server. With `redirect: "manual"`, any 3xx from upstream is turned into a **503**, so the token is never sent to a redirect target. The timeout is 15 s.          |
-| Responses           | The upstream status and body are passed through, always with `Cache-Control: no-store`.                                                                                                                    |
-| Page                | `GET`/`HEAD /` returns the inline HTML with a strict CSP: `default-src 'none'`, inline script and style only, `connect-src 'self'`. It also sends `nosniff` and `no-referrer`. Any other path returns 404. |
+| Rule                | Behaviour                                                                                                                                                                                                                                    |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Path allowlist      | Only `^/api/(expenses(/<36 chars [a-f0-9-]>)?\|totals\|insights\|health)$` is forwarded. Everything else under `/api/` returns **404**, including `/api/activate`. The id must be **lowercase**.                                             |
+| Method table        | `/api/expenses/:id` accepts PATCH only. `/api/expenses` accepts GET and POST. Everything else accepts GET only. Any other method returns **405**.                                                                                            |
+| Same-origin writes  | POST and PATCH need `Origin` equal to the site's own origin **and** `Content-Type: application/json`, otherwise **403**. This blocks cross-site form posts (CSRF).                                                                           |
+| Body limit          | Write bodies are limited to 8000 UTF-8 bytes (**413**).                                                                                                                                                                                      |
+| Configuration check | If `BACKEND_URL` or `BACKEND_TOKEN` is missing, it returns **503** "Connect the expense service…". If `BACKEND_URL` isn't `https://`, it also returns 503.                                                                                   |
+| Credential handling | It adds `Authorization: Bearer …` on the server. With `redirect: "manual"`, any 3xx from upstream is turned into a **503**, so the token is never sent to a redirect target. The timeout is 15 s.                                            |
+| Responses           | The upstream status and body are passed through, always with `Cache-Control: no-store`.                                                                                                                                                      |
+| Page                | `GET`/`HEAD /` returns the inline HTML with a strict CSP: `default-src 'none'`, inline script/style plus the official Telegram SDK script path, `connect-src 'self'`. It also sends `nosniff` and `no-referrer`. Any other path returns 404. |
 
 The backend applies its own checks as well (token, validation, versions; see [backend-api.md](backend-api.md)). The proxy is an extra layer, not the only one.
 
@@ -47,8 +47,8 @@ Change all four of these, or the call will 404 in the browser:
 
 `npm --prefix website run build` runs `scripts/build.sh`, which calls [`scripts/build.mjs`](../website/scripts/build.mjs):
 
-1. It reads `worker/index.js`, `worker/page.html` and `worker/client.js`.
-2. It replaces `__CLIENT_SCRIPT__` in the HTML with the client code, then replaces the string literal `"__PAGE_DOCUMENT__"` in the handler with the whole page as a JSON string.
+1. It reads `worker/index.js`, `worker/page.html`, `worker/client.js` and `worker/telegram.js`.
+2. It replaces `__TELEGRAM_SCRIPT__` and `__CLIENT_SCRIPT__` in the HTML with the adapter and client code, then replaces the string literal `"__PAGE_DOCUMENT__"` in the handler with the whole page as a JSON string.
 3. It writes the result to **`dist/server/index.js`**, which is one self-contained module, plus `public/robots.txt`.
 
 [`scripts/validate-artifact.mjs`](../website/scripts/validate-artifact.mjs) (`npm --prefix website run validate`) imports the adapter, requests `/`, and checks that the page rendered and that no placeholder is left.
@@ -97,3 +97,15 @@ npm run preview      # builds, then serves http://127.0.0.1:8788
 The [`design-ui` skill](../.claude/skills/design-ui/SKILL.md) records the UI conventions (dark-first, calm, phone-first). It also includes a headless-Chrome screenshot script. Save screenshots under [`docs/screenshots/`](screenshots).
 
 `npm run dev:website` also uses port 8788. It serves the built handler in Wrangler with no backend configured, so `/api/*` returns 503. Use it only to check the Worker runtime, and don't run it at the same time as `preview`.
+
+## Telegram presentation boundary
+
+[`worker/telegram.js`](../website/worker/telegram.js) adapts the shared public dashboard to a Telegram host. The official SDK loads asynchronously from `https://telegram.org/js/telegram-web-app.js?63`; page CSP permits only that additional script path. Ordinary API requests and browser startup never wait for the SDK. A missing SDK, a failed download, or the SDK's ordinary-browser `unknown` platform leaves the browser dashboard available. The adapter does not read, send, log, or persist Telegram identity or `initData`.
+
+When a host is present, the adapter calls supported startup controls and listens for theme, viewport, and safe-area events. Telegram light/dark selection overrides the OS theme, with validated hexadecimal presentation colors. Browser visual viewport resize provides a fallback for the editor's usable height; inset values avoid overlapping host chrome. Back closes the editor first, then returns Month to Ledger, and hides at the root. In-page navigation and Save/Cancel remain available when host capabilities are absent or throw. Native Telegram mobile clients remain unverified; browser widths do not establish native keyboard behavior.
+
+Changed forms show an accessible inline Keep editing/Discard changes confirmation through Cancel, Escape, or host Back. Uncertain saves instead offer Leave form with a warning to check the Ledger; review dismissal uses the same inline confirmation. No browser confirm modal is needed inside Telegram's embedded frame. Dirty forms and saves in progress enable supported Telegram closing confirmation and the browser unload guard. Financial drafts stay in memory rather than browser storage; deliberately closing the app can discard them.
+
+The API helper retains response status and bounds browser requests at 20 seconds, so a stalled write returns to uncertain-save recovery. A known validation rejection leaves editable input. After an uncertain write, the editor freezes the exact request body (including the original manual request ID and edit version) and exposes **Retry same save**. Disabled form fields remain excluded from native validation so that the retry can submit. A conflict keeps the draft and blocks blind stale retries; until bounded single-record retrieval is implemented, close the form and explicitly refresh the Ledger before reopening its latest transaction. Opening a fresh manual form creates a fresh transaction ID, so the uncertain-save exit prompt asks the user to check the Ledger first.
+
+[`tests/mini-app-client.test.ts`](../tests/mini-app-client.test.ts) runs the actual adapter and editor functions in VM fixtures, covering missing/late hosts, capability failures, theme/resize, Back/dirty guards, frozen lost-response retries, validation correction, and conflict retention. These synthetic checks do not claim real Telegram launch support; the MA-05/MA-07 client gate records that separately.

@@ -275,3 +275,17 @@ test("upstream failures are sanitized", async (t) => {
   assert.equal(result.status, 503);
   assert(!(await result.text()).includes(env.BACKEND_TOKEN));
 });
+
+test("Telegram SDK CSP permits only its script while API and administrative boundaries remain narrow", async () => {
+  const result = await site.fetch(new Request("https://site.example/"), env);
+  const csp = result.headers.get("Content-Security-Policy")!;
+  assert(
+    csp.includes(
+      "script-src 'unsafe-inline' https://telegram.org/js/telegram-web-app.js;",
+    ),
+  );
+  assert(csp.includes("default-src 'none'"));
+  assert(csp.includes("connect-src 'self'"));
+  assert(!csp.includes("script-src *"));
+  assert(!csp.includes("connect-src https:"));
+});
