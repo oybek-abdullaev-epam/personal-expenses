@@ -30,6 +30,7 @@ function tg(messageId: number) {
 }
 test("save before notification, deduplicate imports, retry sends without another expense", async (t) => {
   const { env, sqlite } = setup();
+  env.TELEGRAM_APP_URL = "https://tracker.example/";
   const e = await seed(env, "purchase", purchaseFixture);
   await seed(env, "purchase", purchaseFixture);
   assert.equal(e.review_reason, null);
@@ -68,6 +69,7 @@ test("category updates and crossed replies associate by message ID and deduplica
   const { env, sqlite } = setup(),
     a = await seed(env, "a"),
     b = await seed(env, "b", purchaseFixture);
+  env.TELEGRAM_APP_URL = "https://tracker.example/";
   let next = 100;
   const sent: any[] = [];
   t.mock.method(globalThis, "fetch", async (_url: unknown, init: any) => {
@@ -138,15 +140,20 @@ test("category updates and crossed replies associate by message ID and deduplica
   );
   await deliver(env, now);
   await deliver(env, now + 1);
-  const confirmations = sent.filter(
-    (body) => body.reply_markup?.remove_keyboard,
-  );
+  const confirmations = sent.filter((body) => body.text?.startsWith("✓ Saved"));
   assert.equal(
     confirmations.length,
     2,
-    "Each saved description must clear the reply interface once",
+    "Each saved description delivers one standalone receipt",
   );
   assert.ok(confirmations.every((body) => body.reply_parameters === undefined));
+  assert.ok(
+    confirmations.every(
+      (body) =>
+        body.reply_markup.inline_keyboard[0][0].web_app.url ===
+        env.TELEGRAM_APP_URL,
+    ),
+  );
   assert.ok(confirmations.some((body) => body.text.includes("Description a")));
   assert.ok(confirmations.some((body) => body.text.includes("Description b")));
   assert.deepEqual(

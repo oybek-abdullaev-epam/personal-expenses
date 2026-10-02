@@ -23,7 +23,7 @@ npm run db:migrate:remote
 npm run deploy:backend
 ```
 
-Save the deployed HTTPS Worker URL for step 3. The Worker stays inactive until step 6. Five-minute cron runs are configured; 20:00 Asia/Tashkent is 15:00 UTC. [Cloudflare Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/).
+Save the deployed HTTPS Worker URL for step 3. The Worker stays inactive until step 6. Five-minute cron runs are configured; 21:00 Asia/Tashkent is 16:00 UTC. [Cloudflare Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/).
 
 ## 2. Authorize the selected Gmail account
 
@@ -85,6 +85,23 @@ node scripts/integrations.mjs profile https://personal-expenses-liard-chi.vercel
 
 This uses the existing local bot token and reads both fields back to verify the update.
 
+## Telegram Mini App menu and notification buttons
+
+The Mini App opens the same public shared tracker without sign-in. It requires no Main Mini App registration, BotFather changes, or `startapp` link. Keep `SITE_URL` as the ordinary dashboard and Gmail-recovery link. Optional `TELEGRAM_APP_URL` is a separate HTTPS app root, with no credentials, query, fragment, or extra path; it must be publicly accessible without Vercel login. Add it to the Worker’s `[vars]` only when the candidate is verified and the rollout is ready. Also save it in ignored `.env.production.json` for the menu helper. Invalid or absent Worker configuration omits app buttons and preserves browser links.
+
+Before changing the menu, capture the default and owner override, using the existing local bot token and owner ID:
+
+```sh
+node scripts/mini-app-menu.mjs capture
+node scripts/mini-app-menu.mjs apply https://your-public-app.vercel.app/
+# Without an argument, apply uses TELEGRAM_APP_URL from .env.production.json.
+node scripts/mini-app-menu.mjs restore
+```
+
+Capture writes ignored `.env.telegram-menu.json` with mode 600 and refuses to overwrite it. Keep that original snapshot throughout testing and rollout. Apply changes only the owner’s private-chat override to **Open tracker**, then verifies its exact readback; restore reapplies and verifies the captured override, including inherited/default settings. The default menu is captured for audit and never modified. `node scripts/mini-app-menu.mjs check` verifies the owner menu against local `TELEGRAM_APP_URL`. A failed or timed-out apply retains the snapshot: restore and verify before retrying. No command resets the webhook or consumes updates.
+
+App buttons reuse existing category notifications, review notices, completed receipts, and daily summaries. Category buttons stay available; description prompts keep ForceReply. Gmail authorization notices and profile links keep the ordinary `SITE_URL` browser destination. [deployment.md](deployment.md#telegram-mini-app-controlled-rollout) describes candidate testing and rollback.
+
 ## 4. Connect the public Vercel website
 
 The frontend is now built for Vercel Hobby. The old private Sites deployment was deleted on 30 September 2026. Deploy this frontend only to Vercel.
@@ -120,7 +137,7 @@ On the next real UZCARD transaction received after activation:
 2. Select a category, then reply to that transaction's description prompt. Confirm the website shows both details.
 3. If two transactions arrive together, reply in reverse order and check both associations.
 4. Edit the website description and refresh; the edit must persist.
-5. Leave one item incomplete through 20:00 Tashkent and verify one reminder. Complete all items and verify no reminder on the next day.
+5. Verify one spending summary during 21:00 Tashkent when today has spending or outstanding details exist. On a day with neither, verify no summary.
 6. Review an unsupported email without adding it to totals; either enter verified fields or dismiss it.
 
 The tracker is **not operationally verified** until this live flow succeeds. Synthetic tests cannot prove Google consent, Telegram delivery, public dashboard access, or cloud configuration.
@@ -129,7 +146,7 @@ The tracker is **not operationally verified** until this live flow succeeds. Syn
 
 - Gmail checkpoints and pagination live in D1. Failed pages are replayed safely, using message IDs to prevent duplicates. One page of up to 25 messages is processed per scheduled run; catch-up may span several runs. A two-second query overlap protects second-boundary receipts.
 - Each expense and its pending notification are saved in one database transaction. Sends retry with exponential backoff (up to one hour), including Telegram's requested delay. A send that succeeds but times out can be repeated; this never creates a second expense. Replies to an unacknowledged send cannot be mapped until a successfully recorded prompt arrives.
-- Reminders are queued once per Tashkent date during the 20:00 hour, recheck the unfinished count, and expire when the local date changes. If the service is down throughout that hour, no late reminder is created. Retries after an ambiguous timeout share Telegram's duplicate-send limitation.
+- Daily summaries are queued once per Tashkent date during the 21:00 hour, recheck spending totals and the unfinished count on delivery, and expire when the local date changes. If the service is down throughout that hour, no late reminder is created. Retries after an ambiguous timeout share Telegram's duplicate-send limitation.
 - Review items retain only a reason and Gmail message ID, not body, balances, or guessed transaction fields. Look up the original email manually when resolving them.
 - Accepted operations are `E-Com oplata`, `oplata`, `Pokupka`, and `Platezh` (outgoing card-to-card transfers count as expenses); UZS, USD, EUR, and RUB use two minor-unit digits. Other formats/currencies are review items. Card data is limited to four digits. No conversion or automatic categorization runs.
 - Protect and back up D1 with your Cloudflare account's facilities. Never change an applied migration; add a new one.

@@ -101,7 +101,7 @@ try {
       throw Error("Provide the public HTTPS dashboard URL.");
     const dashboard = siteUrl.href.replace(/\/$/, "");
     const description =
-      "Your personal UZCARD expense tracker. Get transaction alerts, choose a category, and reply with a short description. Receive a daily reminder at 20:00 Tashkent time when expenses need details.\n\nView and edit expenses on your public dashboard:\n" +
+      "Your personal UZCARD expense tracker. Get transaction alerts, choose a category, and reply with a short description. Receive a daily spending summary at 21:00 Tashkent time when spending or outstanding details exist.\n\nView and edit expenses on your public dashboard:\n" +
       dashboard;
     const shortDescription =
       "Personal UZCARD expense tracker. Dashboard: " + dashboard;

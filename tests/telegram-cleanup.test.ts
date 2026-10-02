@@ -39,6 +39,7 @@ function response(messageId = 1000) {
 
 test("receipt delivery precedes cleanup; delete failures retry without another receipt", async (t) => {
   const { env, sqlite } = setup();
+  env.TELEGRAM_APP_URL = "https://tracker.example/";
   const id = await transaction(env, "completed");
   const pending = await transaction(env, "pending");
   sqlite.exec("UPDATE outbox SET sent_at=1");
@@ -84,6 +85,10 @@ test("receipt delivery precedes cleanup; delete failures retry without another r
   await deliver(env, now + 60000);
   assert.match(calls[1].body.text, /Food · Synthetic lunch/);
   assert.equal(calls[1].body.reply_parameters, undefined);
+  assert.equal(
+    calls[1].body.reply_markup.inline_keyboard[0][0].web_app.url,
+    env.TELEGRAM_APP_URL,
+  );
   assert.deepEqual(
     calls
       .filter((c) => c.method === "deleteMessage")

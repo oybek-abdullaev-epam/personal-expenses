@@ -1,6 +1,6 @@
 # MA-06: Transaction navigation and chat coexistence
 
-- **Status:** Backlog
+- **Status:** Ready
 - **Proposal:** [Telegram Mini App](../PLAN.md)
 - **Depends on:** [MA-05](MA-05-launch.md)
 - **Risks:** [R04](../RISKS.md#r04)

@@ -123,13 +123,15 @@ queueCleanup → drain(all kinds) → queueCleanup → drain(delete only)
 
 | Kind | Sends | Notes |
 |---|---|---|
-| `expense` | Summary plus "Choose a category", with inline buttons (`cat:<uuid>:<n>` or `inc:<uuid>:<n>`) | Records `telegram_messages(kind='expense')` |
+| `expense` | Summary plus "Choose a category", with inline buttons (`cat:<uuid>:<n>` or `inc:<uuid>:<n>`) | Records `telegram_messages(kind='expense')`; app launch row when configured |
 | `review` | "An UZCARD email needs review (<reason>). It is excluded from spending totals." plus the dashboard link | |
 | `prompt` | Summary plus "Reply to this message with a short description." as a `force_reply` | Skipped if the transaction is already complete. Records `kind='prompt'` |
-| `receipt` | "✓ Saved", summary, category · description, and the dashboard link. Removes the keyboard | Only if complete. Records `kind='receipt'` |
+| `receipt` | "✓ Saved", summary, category · description, and the dashboard link. App launch button when configured, otherwise removes the keyboard | Only if complete. Records `kind='receipt'` |
 | `reminder` | Today’s spending so far and expense count per currency, outstanding needs-details count when nonzero, and dashboard link | Sent if today has spending or outstanding details exist, and the row belongs to today |
 | `auth` | "Gmail authorization needs attention. Reconnect Google…" | |
 | `delete` | `deleteMessage` | See cleanup below |
+
+Optional `TELEGRAM_APP_URL` adds an **Open tracker** inline row to category notifications, reviews, receipts, and daily summaries. The URL validator requires an HTTPS root without credentials, query, or fragment; missing/invalid configuration omits the row. Existing category callback rows and ForceReply prompts remain unchanged. Each message uses one markup type: a configured receipt uses an inline keyboard, while its prompt retains ForceReply. Browser links and Gmail recovery continue using `SITE_URL`. Launch buttons do not queue extra jobs or alter transaction/reply associations.
 
 - **On success,** the row is marked sent and the Telegram `message_id` is linked to the transaction in `telegram_messages`, all in one batch. That link is how replies are matched later.
 - **On failure,** the retry delay is `max(min(1 h, 30 s × 2^min(attempts, 7)), Telegram's retry_after)`. That gives 30 s, 1 m, 2 m and so on, capped at one hour. **There is no maximum attempt count.**

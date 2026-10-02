@@ -1,6 +1,6 @@
 # MA-05: Bot launch integration
 
-- **Status:** Ready
+- **Status:** Done
 - **Proposal:** [Telegram Mini App](../PLAN.md)
 - **Depends on:** [MA-04](MA-04-interface.md)
 - **Risks:** [R03](../RISKS.md#r03), [R04](../RISKS.md#r04)
@@ -30,11 +30,11 @@ Client API/bootstrap code, `backend/src/telegram.ts`, URL/environment configurat
 
 ## Acceptance checks
 
-- [ ] Required launch modes open the Ledger without sign-in in Telegram Web using authorized synthetic data; another visitor receives the same public dashboard, using synthetic data for verification.
-- [ ] SDK failure, unsupported clients, and ordinary browser URLs retain useful dashboard access or a browser fallback without requiring launch credentials.
-- [ ] Existing notification formatting, summary rules, callback data, and reply association behavior survive launch-button additions.
-- [ ] Duplicate updates, notification timeouts/retries, and cleanup retries preserve existing guarantees; no second delivery pipeline or duplicate transaction is introduced.
+- [x] Required launch modes open the Ledger without sign-in in Telegram Web using authorized synthetic data; another visitor receives the same public dashboard, using synthetic data for verification.
+- [x] SDK failure, unsupported clients, and ordinary browser URLs retain useful dashboard access or a browser fallback without requiring launch credentials.
+- [x] Existing notification formatting, summary rules, callback data, and reply association behavior survive launch-button additions.
+- [x] Duplicate updates, notification timeouts/retries, and cleanup retries preserve existing guarantees; no second delivery pipeline or duplicate transaction is introduced.
 
 ## Completion evidence
 
-Not started. Record Telegram Web/browser launch results, client versions, notification regression results, and reviewed configuration/runbook changes.
+See [MA-05 evidence](../../../docs/verification/telegram-mini-app/MA-05.md): real Telegram Web K menu and inline launch, exact menu restoration, 67 passing tests, successful build, and independent review. Native clients remain deferred.
