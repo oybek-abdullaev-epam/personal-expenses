@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, stat, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { miniAppUrl, trackerButton } from "../backend/src/telegram-links";
+import {
+  miniAppUrl,
+  trackerButton,
+  transactionButton,
+} from "../backend/src/telegram-links";
 import {
   appUrl,
   captureMenu,
@@ -76,6 +80,8 @@ for (const configured of [app, undefined, "https://tracker.example/?bad=1"]) {
       category.flat().filter((x: any) => x.web_app).length,
       configured === app ? 1 : 0,
     );
+    if (configured === app)
+      assert.deepEqual(category.at(-1), [transactionButton(app, String(e.id))]);
     await sql(
       env,
       "INSERT INTO outbox(id,expense_id,kind,available_at) VALUES('test-prompt',?,'prompt',?)",
@@ -119,7 +125,13 @@ for (const configured of [app, undefined, "https://tracker.example/?bad=1"]) {
       assert.ok(body.text.includes(env.SITE_URL));
       if (configured === app)
         assert.deepEqual(body.reply_markup, {
-          inline_keyboard: [[trackerButton(app)]],
+          inline_keyboard: [
+            [
+              text === "Today’s spending so far"
+                ? trackerButton(app)
+                : transactionButton(app, String(e.id)),
+            ],
+          ],
         });
       else assert.equal(body.reply_markup?.inline_keyboard, undefined);
     }

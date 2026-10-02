@@ -1,6 +1,6 @@
 # MA-06: Transaction navigation and chat coexistence
 
-- **Status:** Ready
+- **Status:** Done
 - **Proposal:** [Telegram Mini App](../PLAN.md)
 - **Depends on:** [MA-05](MA-05-launch.md)
 - **Risks:** [R04](../RISKS.md#r04)
@@ -31,12 +31,12 @@ Launch parser/router, record retrieval/API allowlist if extended, Telegram messa
 
 ## Acceptance checks
 
-- [ ] A valid link selects its transaction even outside the current page/date/filter; opening twice creates no write or notification.
-- [ ] Malformed or missing selectors fail safely; valid selectors open the intended public record, and opening or tampering with a link cannot mutate a record.
-- [ ] Mini App edits interleaved with category callbacks and reversed description replies retain correct associations; stale prompts/conflicts have explicit safe outcomes.
-- [ ] Duplicate polling/updates, receipt and cleanup retries, and network interruptions do not duplicate deterministic effects or manual entries.
-- [ ] Existing manual-entry, exact-total, timezone, income, review, and daily-summary behavior passes relevant regression checks.
+- [x] A valid link selects its transaction even outside the current page/date/filter; opening twice creates no write or notification.
+- [x] Malformed or missing selectors fail safely; valid selectors open the intended public record, and opening or tampering with a link cannot mutate a record.
+- [x] Mini App edits interleaved with category callbacks and reversed description replies retain correct associations; stale prompts/conflicts have explicit safe outcomes.
+- [x] Duplicate polling/updates, receipt and cleanup retries, and network interruptions do not duplicate deterministic effects or manual entries.
+- [x] Existing manual-entry, exact-total, timezone, income, review, and daily-summary behavior passes relevant regression checks.
 
 ## Completion evidence
 
-Not started. Record routing/association test results, Telegram Web/browser client evidence, API changes, and remaining edge cases.
+See [MA-06 evidence](../../../docs/verification/telegram-mini-app/MA-06.md): 88 passing tests, successful build, independent review closure and actual synthetic browser conflict/link checks. Real Telegram record links are a rollout smoke check after compatible backend deployment; generic host launch is already verified.

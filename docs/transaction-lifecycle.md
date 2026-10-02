@@ -123,7 +123,7 @@ queueCleanup → drain(all kinds) → queueCleanup → drain(delete only)
 
 | Kind | Sends | Notes |
 |---|---|---|
-| `expense` | Summary plus "Choose a category", with inline buttons (`cat:<uuid>:<n>` or `inc:<uuid>:<n>`) | Records `telegram_messages(kind='expense')`; app launch row when configured |
+| `expense` | Summary plus "Choose a category", with inline buttons (`cat:<uuid>:<n>` or `inc:<uuid>:<n>`) | Records `telegram_messages(kind='expense')`; View transaction row when configured |
 | `review` | "An UZCARD email needs review (<reason>). It is excluded from spending totals." plus the dashboard link | |
 | `prompt` | Summary plus "Reply to this message with a short description." as a `force_reply` | Skipped if the transaction is already complete. Records `kind='prompt'` |
 | `receipt` | "✓ Saved", summary, category · description, and the dashboard link. App launch button when configured, otherwise removes the keyboard | Only if complete. Records `kind='receipt'` |
@@ -131,7 +131,7 @@ queueCleanup → drain(all kinds) → queueCleanup → drain(delete only)
 | `auth` | "Gmail authorization needs attention. Reconnect Google…" | |
 | `delete` | `deleteMessage` | See cleanup below |
 
-Optional `TELEGRAM_APP_URL` adds an **Open tracker** inline row to category notifications, reviews, receipts, and daily summaries. The URL validator requires an HTTPS root without credentials, query, or fragment; missing/invalid configuration omits the row. Existing category callback rows and ForceReply prompts remain unchanged. Each message uses one markup type: a configured receipt uses an inline keyboard, while its prompt retains ForceReply. Browser links and Gmail recovery continue using `SITE_URL`. Launch buttons do not queue extra jobs or alter transaction/reply associations.
+Optional `TELEGRAM_APP_URL` adds a **View transaction** inline row to category notifications, reviews, and receipts. URL construction uses the validated HTTPS root and adds only `?transaction=<canonical lowercase UUID>`. Daily summaries retain a generic **Open tracker** button. The URL validator requires an HTTPS root without credentials, query, or fragment; missing/invalid configuration omits the row. Existing category callback rows and ForceReply prompts remain unchanged. Each message uses one markup type: a configured receipt uses an inline keyboard, while its prompt retains ForceReply. Browser links and Gmail recovery continue using `SITE_URL`. Launch buttons do not queue extra jobs or alter transaction/reply associations.
 
 - **On success,** the row is marked sent and the Telegram `message_id` is linked to the transaction in `telegram_messages`, all in one batch. That link is how replies are matched later.
 - **On failure,** the retry delay is `max(min(1 h, 30 s × 2^min(attempts, 7)), Telegram's retry_after)`. That gives 30 s, 1 m, 2 m and so on, capped at one hour. **There is no maximum attempt count.**
@@ -156,6 +156,8 @@ The webhook in [`index.ts`](../backend/src/index.ts) checks the secret header (4
 
 Invalid or stale input, such as a tap on an old button or a reply to the wrong message, is marked processed and otherwise ignored.
 
+**Dashboard edits alongside chat.** Before a receipt is delivered, recorded category buttons and prompts remain valid even when the dashboard has supplied details. The next accepted field update wins and increments `version`; dashboard saves with an earlier version return 409. Reversed replies still use their individual prompt IDs, including when expense and income transactions overlap. A queued receipt retry reads the current row, so edits made before retry appear in the receipt. Once a receipt association exists, category callbacks and description replies are stale and ignored, even before cleanup succeeds or after the dashboard reopens the row. Reopening also postpones pending cleanup until the transaction is complete again. Dashboard edits themselves do not queue a replacement receipt or a fresh chat prompt.
+
 ## 7. Chat cleanup: `queueCleanup()` in [`telegram.ts`](../backend/src/telegram.ts)
 
 Once a transaction is complete **and its receipt was delivered**, `delete:<message_id>` jobs are queued for the category message, the prompt and the owner's reply. Receipts themselves are deleted when they are older than 47 hours, or when they are not among the **3 newest receipts**. Telegram only lets bots delete messages younger than 48 hours. A message Telegram refuses to delete is marked `cleanup_status='unavailable'` and never retried. Pending transactions' prompts are never deleted.
@@ -169,6 +171,8 @@ Spending uses transaction times from Tashkent midnight through message generatio
 ## 9. The dashboard
 
 The browser loads `/` from Vercel and calls `/api/expenses`, `/api/totals`, `/api/health` and `/api/insights`. The Vercel function forwards these to the backend with the token. Editing a row sends `PATCH /api/expenses/:id` with the row's `version`. If someone else changed it meanwhile, the backend returns **409** and the page asks the user to reload. See [frontend.md](frontend.md) and [backend-api.md](backend-api.md).
+
+Transaction links select a strict UUID through `?transaction=<UUID>`. The client fetches `GET /api/expenses/:id`, which returns one current record independently of filters, month, or loaded pages. This authenticated backend route is also available through the public proxy. Opening twice only reads; it does not edit the record, create outbox work, or touch pending chat prompts. Missing or dismissed records return 404, malformed paths are rejected, and service failures remain retryable. This preserves the same shared public dashboard access policy.
 
 A transaction **needs details** (the `NEEDS_DETAILS` SQL in [`domain.ts`](../backend/src/domain.ts)) if it is a review item, has an empty description, or is missing the category for its direction.
 

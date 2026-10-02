@@ -1,6 +1,6 @@
 # MA-07: Integrated validation and recovery rehearsal
 
-- **Status:** Backlog
+- **Status:** Ready
 - **Proposal:** [Telegram Mini App](../PLAN.md)
 - **Depends on:** [MA-06](MA-06-transaction-links.md)
 - **Risks:** [R03](../RISKS.md#r03), [R04](../RISKS.md#r04), [R05](../RISKS.md#r05)

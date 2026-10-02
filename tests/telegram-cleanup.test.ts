@@ -87,7 +87,7 @@ test("receipt delivery precedes cleanup; delete failures retry without another r
   assert.equal(calls[1].body.reply_parameters, undefined);
   assert.equal(
     calls[1].body.reply_markup.inline_keyboard[0][0].web_app.url,
-    env.TELEGRAM_APP_URL,
+    `${env.TELEGRAM_APP_URL}?transaction=${id}`,
   );
   assert.deepEqual(
     calls

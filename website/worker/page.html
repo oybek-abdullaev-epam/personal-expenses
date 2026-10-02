@@ -898,6 +898,14 @@
       #form-error:empty {
         display: none;
       }
+      .launch {
+        max-width: 1180px;
+        margin: 20px auto;
+        padding: 20px;
+      }
+      .launch p {
+        margin: 0 0 14px;
+      }
       #editor-confirm {
         border: 1px solid var(--line-strong);
         border-radius: 12px;
@@ -1629,6 +1637,25 @@
       </div>
       <span class="public">Public · Tashkent</span>
     </header>
+    <section
+      id="transaction-launch"
+      class="launch panel"
+      hidden
+      aria-label="Linked transaction"
+    >
+      <p id="transaction-message" role="status" aria-live="polite"></p>
+      <div class="confirm-buttons">
+        <button type="button" class="btn" id="transaction-retry" hidden>
+          Retry
+        </button>
+        <button type="button" class="btn" id="transaction-open" hidden>
+          View transaction
+        </button>
+        <button type="button" class="btn" id="transaction-return">
+          Return to Ledger
+        </button>
+      </div>
+    </section>
     <main class="layout" id="ledger-view">
       <aside class="side">
         <div class="status">
@@ -1844,6 +1871,9 @@
           ></textarea>
         </label>
         <div id="form-error" role="alert"></div>
+        <button type="button" class="btn" id="review-latest" hidden>
+          Review latest
+        </button>
         <div
           id="editor-confirm"
           role="group"

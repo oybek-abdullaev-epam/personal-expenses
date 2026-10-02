@@ -6,14 +6,18 @@ export default {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) {
       if (
-        !/^\/api\/(expenses(?:\/[a-f0-9-]{36})?|totals|insights|health)$/.test(
+        !/^\/api\/(expenses(?:\/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})?|totals|insights|health)$/.test(
           url.pathname,
         )
       )
         return response({ error: "Not found" }, 404);
       const writing = request.method === "PATCH" || request.method === "POST";
-      const allowed = /^\/api\/expenses\/[a-f0-9-]{36}$/.test(url.pathname)
-        ? ["PATCH"]
+      const recordPath =
+        /^\/api\/expenses\/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/.test(
+          url.pathname,
+        );
+      const allowed = recordPath
+        ? ["GET", "PATCH"]
         : url.pathname === "/api/expenses"
           ? ["GET", "POST"]
           : ["GET"];

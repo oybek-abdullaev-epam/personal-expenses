@@ -61,6 +61,8 @@ test("daily summary schedules at 21:00 once, including complete spending; empty 
 });
 
 test("daily totals respect Tashkent boundaries, sources, missing details, exclusions and currencies", async (t) => {
+  // Hold generation time fixed so the +1 ms future boundary cannot enter the summary during query execution.
+  t.mock.method(Date, "now", () => evening);
   const { env, sqlite } = setup();
   transaction(sqlite, "before-midnight", {
     occurred_at: "2026-09-29T18:59:59.999Z",
@@ -156,7 +158,13 @@ test("summary retries claim once, obey retry_after, refresh edits and expire aft
   await deliver(env, evening + 300000);
   assert.equal(texts.length, 1);
   sqlite.exec("UPDATE expenses SET amount_minor=77700,description='Done'");
-  await deliver(env, evening + 600000);
+  const availableAt = Number(
+    sqlite
+      .prepare("SELECT available_at FROM outbox WHERE kind='reminder'")
+      .get()!.available_at,
+  );
+  assert(availableAt >= evening + 600000);
+  await deliver(env, availableAt);
   assert.equal(texts.length, 2);
   assert.match(texts[1], /777\.00 UZS/);
   assert.doesNotMatch(texts[1], /need.*details/);

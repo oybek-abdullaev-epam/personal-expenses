@@ -9,7 +9,7 @@ import {
   tashkentDay,
 } from "./domain";
 import { getExpense, sql } from "./store";
-import { trackerButton } from "./telegram-links";
+import { trackerButton, transactionButton } from "./telegram-links";
 interface Outbox {
   id: string;
   expense_id: string | null;
@@ -218,6 +218,9 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
       const isReceipt =
         row.kind === "receipt" || row.kind === "description_saved";
       const appButton = trackerButton(env.TELEGRAM_APP_URL);
+      const recordButton = e
+        ? transactionButton(env.TELEGRAM_APP_URL, e.id)
+        : null;
       if (row.kind === "expense" && e) {
         text = `${summary(e)}\n\nChoose a category.`;
         const choices =
@@ -230,7 +233,7 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
                 callback_data: `${e.direction === "income" ? "inc" : "cat"}:${e.id}:${i * 2 + j}`,
               })),
             ),
-            ...(appButton ? [[appButton]] : []),
+            ...(recordButton ? [[recordButton]] : []),
           ],
         };
       } else if (row.kind === "prompt" && e && !complete(e) && !e.dismissed) {
@@ -243,12 +246,12 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
         text = `✓ Saved\n${summary(e)}\n\n${e.direction === "income" ? e.income_category : e.category} · ${e.description}\n\nOpen dashboard: ${env.SITE_URL}`;
         // A message accepts one markup type. Keep ForceReply on its prompt;
         // the standalone receipt uses an inline launch button when configured.
-        markup = appButton
-          ? { inline_keyboard: [[appButton]] }
+        markup = recordButton
+          ? { inline_keyboard: [[recordButton]] }
           : { remove_keyboard: true };
       } else if (row.kind === "review" && e) {
         text = `An UZCARD email needs review (${e.review_reason}). It is excluded from spending totals.\n${env.SITE_URL}`;
-        if (appButton) markup = { inline_keyboard: [[appButton]] };
+        if (recordButton) markup = { inline_keyboard: [[recordButton]] };
       } else if (row.kind === "auth")
         text = `Gmail authorization needs attention. Reconnect Google to resume email sync.\n${env.SITE_URL}`;
       else if (row.kind === "reminder") {

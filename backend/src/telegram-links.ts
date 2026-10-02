@@ -24,3 +24,15 @@ export function trackerButton(value: unknown) {
   const url = miniAppUrl(value);
   return url ? { text: "Open tracker", web_app: { url } } : null;
 }
+
+export function transactionButton(value: unknown, id: string) {
+  const base = miniAppUrl(value);
+  if (
+    !base ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
+  )
+    return null;
+  const url = new URL(base);
+  url.searchParams.set("transaction", id.toLowerCase());
+  return { text: "View transaction", web_app: { url: url.href } };
+}

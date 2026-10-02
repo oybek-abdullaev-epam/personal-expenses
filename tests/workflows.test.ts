@@ -150,8 +150,12 @@ test("category updates and crossed replies associate by message ID and deduplica
   assert.ok(
     confirmations.every(
       (body) =>
-        body.reply_markup.inline_keyboard[0][0].web_app.url ===
-        env.TELEGRAM_APP_URL,
+        [a.id, b.id].includes(
+          new URL(
+            body.reply_markup.inline_keyboard[0][0].web_app.url,
+          ).searchParams.get("transaction")!,
+        ) &&
+        body.reply_markup.inline_keyboard[0][0].text === "View transaction",
     ),
   );
   assert.ok(confirmations.some((body) => body.text.includes("Description a")));

@@ -264,7 +264,17 @@ export async function api(
       nextOffset: rows.results.length > 50 ? Number(raw) + 50 : null,
     });
   }
-  const m = /^\/api\/expenses\/([a-f0-9-]{36})$/.exec(path);
+  const m =
+    /^\/api\/expenses\/([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})$/.exec(
+      path,
+    );
+  if (m) m[1] = m[1].toLowerCase();
+  if (m && request.method === "GET") {
+    const existing = await getExpense(env, m[1]);
+    return existing && !existing.dismissed
+      ? json(existing)
+      : json({ error: "Not found" }, 404);
+  }
   if (m && request.method === "PATCH") {
     const existing = await getExpense(env, m[1]);
     if (!existing) return json({ error: "Not found" }, 404);
