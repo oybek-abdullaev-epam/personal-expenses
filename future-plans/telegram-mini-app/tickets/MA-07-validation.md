@@ -1,6 +1,6 @@
 # MA-07: Integrated validation and recovery rehearsal
 
-- **Status:** Ready
+- **Status:** Done
 - **Proposal:** [Telegram Mini App](../PLAN.md)
 - **Depends on:** [MA-06](MA-06-transaction-links.md)
 - **Risks:** [R03](../RISKS.md#r03), [R04](../RISKS.md#r04), [R05](../RISKS.md#r05)
@@ -31,12 +31,12 @@ Automated suites, synthetic environment and authorized owner-chat real-bot check
 
 ## Acceptance checks
 
-- [ ] Required automated checks pass and supported-client tasks have recorded results; unresolved release blockers are explicit.
-- [ ] Mini App and ordinary browser dashboard operations work anonymously. Direct backend requests without its credential, public admin requests, and invalid webhook/chat interactions remain rejected.
-- [ ] Rehearsal preserves history, activation, Gmail progress, outbox state, and pending reply associations, including through recovery.
-- [ ] Rollback preserves public dashboard use and existing integration protections; the owner can recover through documented tools.
-- [ ] Readiness report separates verified candidate behavior from live checks reserved for MA-08.
+- [x] Required automated checks pass and supported-client tasks have recorded results; unresolved release blockers are explicit.
+- [x] Mini App and ordinary browser dashboard operations work anonymously. Direct backend requests without its credential, public admin requests, and invalid webhook/chat interactions remain rejected.
+- [x] Rehearsal preserves history, activation, Gmail progress, outbox state, and pending reply associations, including through recovery.
+- [x] Rollback preserves public dashboard use and existing integration protections; the owner can recover through documented tools.
+- [x] Readiness report separates verified candidate behavior from live checks reserved for MA-08.
 
 ## Completion evidence
 
-Not started. Record commands/results, client matrix, synthetic recovery results, readiness decision, and any limitations.
+See [MA-07 readiness](../../../docs/verification/telegram-mini-app/MA-07.md): 88 tests/build passed, independent review closed, browser matrix and same-database recovery rehearsal passed. Live record routing and final configuration are MA-08 smoke gates; native/natural observations remain deferred.

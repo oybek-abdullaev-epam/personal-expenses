@@ -1,6 +1,6 @@
 # MA-08: Controlled owner rollout
 
-- **Status:** Backlog
+- **Status:** Ready
 - **Proposal:** [Telegram Mini App](../PLAN.md)
 - **Depends on:** [MA-07](MA-07-validation.md)
 - **Risks:** [R05](../RISKS.md#r05)
