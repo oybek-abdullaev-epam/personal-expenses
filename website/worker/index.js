@@ -1,19 +1,21 @@
 const page = "__PAGE_DOCUMENT__";
+const UUID =
+  "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}";
+const apiPath = new RegExp(
+  `^/api/(expenses(?:/${UUID})?|totals|insights|health)$`,
+);
+const recordPath = new RegExp(`^/api/expenses/${UUID}$`);
 const response = (data, status = 200) =>
   Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) {
-      if (
-        !/^\/api\/(expenses(?:\/[a-f0-9-]{36})?|totals|insights|health)$/.test(
-          url.pathname,
-        )
-      )
+      if (!apiPath.test(url.pathname))
         return response({ error: "Not found" }, 404);
       const writing = request.method === "PATCH" || request.method === "POST";
-      const allowed = /^\/api\/expenses\/[a-f0-9-]{36}$/.test(url.pathname)
-        ? ["PATCH"]
+      const allowed = recordPath.test(url.pathname)
+        ? ["GET", "PATCH"]
         : url.pathname === "/api/expenses"
           ? ["GET", "POST"]
           : ["GET"];
@@ -86,7 +88,7 @@ export default {
         "X-Content-Type-Options": "nosniff",
         "Referrer-Policy": "no-referrer",
         "Content-Security-Policy":
-          "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'",
+          "default-src 'none'; script-src 'unsafe-inline' https://telegram.org/js/telegram-web-app.js; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'",
       },
     });
   },

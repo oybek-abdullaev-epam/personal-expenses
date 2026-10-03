@@ -21,7 +21,21 @@ let expenses = [],
   selected = null,
   creationId = null,
   loading = false,
-  requestVersion = 0;
+  requestVersion = 0,
+  editorBaseline = "",
+  pendingSubmission = null,
+  saving = false,
+  formConflict = false,
+  editorConfirmation = null,
+  reviewingLatest = false,
+  editorVersion = 0,
+  launchKey = null,
+  launchSelection = null,
+  launchVersion = 0,
+  navigationVersion = 0,
+  navigationKey = null,
+  routedHref = null,
+  launchRecord = null;
 const time = (value) =>
   new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Tashkent",
@@ -43,17 +57,50 @@ const money = (minor, currency) => {
     currency
   );
 };
+// AbortSignal.timeout is missing in older Telegram WebViews.
+function timeoutSignal(ms) {
+  if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
 async function api(path, options = {}) {
-  const r = await fetch(path, options);
+  const r = await fetch(path, {
+    ...options,
+    signal: timeoutSignal(20000),
+  });
   let data;
   try {
     data = await r.json();
   } catch {
-    throw Error("Unable to read the response. Please refresh.");
+    const error = Error("Unable to read the response. Please try again.");
+    error.status = r.status;
+    error.uncertain = true;
+    throw error;
   }
-  if (!r.ok)
-    throw Error(data.error || "Something went wrong. Please try again.");
+  if (!r.ok) {
+    const error = Error(
+      data.error || "Something went wrong. Please try again.",
+    );
+    error.status = r.status;
+    error.uncertain = r.status >= 500;
+    throw error;
+  }
   return data;
+}
+// Only the transaction query field selects a record; SDK fields stay untouched.
+function transactionSelector(search) {
+  const values = new URLSearchParams(search).getAll("transaction");
+  if (!values.length || (values.length === 1 && values[0] === ""))
+    return { kind: "none" };
+  if (
+    values.length !== 1 ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
+      values[0],
+    )
+  )
+    return { kind: "invalid" };
+  return { kind: "transaction", id: values[0].toLowerCase() };
 }
 function node(tag, text, className) {
   const n = document.createElement(tag);
@@ -405,7 +452,146 @@ function apiLocalTime(input) {
   const [year, month, day] = date.split("-");
   return `${day}.${month}.${year.slice(2)} ${hour}`;
 }
+function editorValues() {
+  return JSON.stringify(
+    [...edit.elements]
+      .filter((field) => /^(INPUT|SELECT|TEXTAREA)$/.test(field.tagName))
+      .map((field) => [field.name, field.value]),
+  );
+}
+function editorDirty() {
+  return (
+    $("editor").open &&
+    (saving ||
+      reviewingLatest ||
+      Boolean(pendingSubmission) ||
+      editorValues() !== editorBaseline)
+  );
+}
+function editorState() {
+  for (const field of edit.elements)
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(field.tagName))
+      field.disabled =
+        saving ||
+        reviewingLatest ||
+        Boolean(pendingSubmission) ||
+        (field.name === "direction" &&
+          selected &&
+          selected.source !== "manual" &&
+          !selected.review_reason);
+  $("save").disabled =
+    saving || reviewingLatest || formConflict || Boolean(editorConfirmation);
+  $("dismiss").disabled =
+    saving ||
+    reviewingLatest ||
+    formConflict ||
+    Boolean(pendingSubmission) ||
+    Boolean(editorConfirmation);
+  $("cancel").disabled = saving;
+  $("review-latest").hidden = !formConflict;
+  $("review-latest").disabled =
+    saving || reviewingLatest || Boolean(editorConfirmation);
+  $("save").textContent = pendingSubmission
+    ? pendingSubmission.dismiss
+      ? "Retry dismiss"
+      : "Retry same save"
+    : selected
+      ? "Save changes"
+      : "Add transaction";
+  telegram.update();
+}
+function discardEditor() {
+  editorVersion++;
+  reviewingLatest = false;
+  $("editor").close();
+  pendingSubmission = null;
+  formConflict = false;
+  editorConfirmation = null;
+  $("editor-confirm").hidden = true;
+  telegram.update();
+}
+function confirmEditor(action) {
+  editorConfirmation = action;
+  $("editor-confirm-message").textContent =
+    action === "latest"
+      ? "Replace your draft with the latest saved transaction? Your unsaved details will be discarded only if it loads successfully."
+      : action === "dismiss"
+        ? "Dismiss this review item? It will remain excluded from totals."
+        : pendingSubmission
+          ? "The save may have succeeded. Leave this form? Check the Ledger before adding another transaction."
+          : "Discard your unsaved changes?";
+  $("confirm-discard").textContent =
+    action === "latest"
+      ? "Replace draft"
+      : action === "dismiss"
+        ? "Dismiss review"
+        : pendingSubmission
+          ? "Leave form"
+          : "Discard changes";
+  $("editor-confirm").hidden = false;
+  editorState();
+  $("keep-editing").focus();
+  $("editor-confirm").scrollIntoView({ block: "nearest" });
+}
+function closeEditor() {
+  if (saving) return;
+  if (editorDirty()) confirmEditor("close");
+  else discardEditor();
+}
+$("keep-editing").onclick = () => {
+  editorConfirmation = null;
+  $("editor-confirm").hidden = true;
+  editorState();
+  $("cancel").focus();
+};
+$("confirm-discard").onclick = () => {
+  if (saving) return;
+  if (editorConfirmation === "latest") {
+    editorConfirmation = null;
+    $("editor-confirm").hidden = true;
+    reviewLatest();
+  } else if (editorConfirmation === "dismiss") {
+    editorConfirmation = null;
+    $("editor-confirm").hidden = true;
+    editorState();
+    save(true);
+  } else {
+    // An unconfirmed save may have committed; refresh so the ledger shows it.
+    const unconfirmed = Boolean(pendingSubmission);
+    discardEditor();
+    if (unconfirmed) {
+      load();
+      if (location.hash === "#month") loadMonth();
+    }
+  }
+};
+const telegram = createTelegramAdapter({
+  onBack: () => {
+    if ($("editor").open) closeEditor();
+    else if (launchSelection && launchSelection.kind !== "none") leaveLaunch();
+    else if (location.hash === "#month") location.hash = "";
+  },
+  canGoBack: () =>
+    $("editor").open ||
+    Boolean(launchSelection && launchSelection.kind !== "none") ||
+    location.hash === "#month",
+  hasUnsavedChanges: editorDirty,
+});
+edit.addEventListener("input", () => telegram.update());
+edit.addEventListener("change", () => telegram.update());
+$("editor").addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeEditor();
+});
+$("editor").addEventListener("close", () => telegram.update());
 function openEditor(e = null) {
+  if ($("editor").open) return;
+  editorVersion++;
+  reviewingLatest = false;
+  pendingSubmission = null;
+  formConflict = false;
+  editorConfirmation = null;
+  $("editor-confirm").hidden = true;
   selected = e;
   creationId = e ? null : crypto.randomUUID();
   const manual = !e || e.source === "manual";
@@ -450,10 +636,12 @@ function openEditor(e = null) {
     edit.elements.card_suffix.value = e?.card_suffix || "";
     date.value = localInput(e?.occurred_at || new Date().toISOString());
   }
+  editorBaseline = editorValues();
   $("editor").showModal();
+  editorState();
 }
 $("add-transaction").onclick = () => openEditor();
-$("cancel").onclick = () => $("editor").close();
+$("cancel").onclick = closeEditor;
 async function save(dismiss = false) {
   if ((!selected && !creationId) || $("save").disabled) return;
   const creating = !selected;
@@ -489,36 +677,168 @@ async function save(dismiss = false) {
         "direction",
       ].map((k) => [k, edit.elements[k].value]),
     );
-  $("save").disabled = true;
-  $("dismiss").disabled = true;
+  // Keep the exact body and request ID if delivery cannot be determined.
+  const submission = pendingSubmission || {
+    path: creating ? "/api/expenses" : "/api/expenses/" + selected.id,
+    method: creating ? "POST" : "PATCH",
+    body: JSON.stringify(body),
+    dismiss,
+  };
+  const dismissed = submission.dismiss;
+  saving = true;
+  editorState();
   $("form-error").textContent = "";
   try {
-    await api(creating ? "/api/expenses" : "/api/expenses/" + selected.id, {
-      method: creating ? "POST" : "PATCH",
+    const persisted = await api(submission.path, {
+      method: submission.method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: submission.body,
     });
+    editorVersion++;
+    updateLinkedRecord(persisted, dismissed);
+    pendingSubmission = null;
+    editorConfirmation = null;
+    $("editor-confirm").hidden = true;
+    saving = false;
+    editorBaseline = editorValues();
     $("editor").close();
-    $("toast").textContent = dismiss ? "Review dismissed" : "Transaction saved";
+    telegram.update();
+    $("toast").textContent = dismissed
+      ? "Review dismissed"
+      : "Transaction saved";
     $("toast").hidden = false;
     setTimeout(() => ($("toast").hidden = true), 2500);
     await load();
     if (location.hash === "#month") await loadMonth();
   } catch (e) {
-    $("form-error").textContent = e.message;
+    if (e.status === 409) {
+      // A replay carries the old version, so a 409 may be our own earlier save.
+      const retried = Boolean(pendingSubmission);
+      formConflict = true;
+      $("form-error").textContent = retried
+        ? "This transaction changed. That may be your earlier save. Your draft is kept here. Review the latest saved transaction before making further changes."
+        : e.message +
+          " Your draft is kept here. Review the latest saved transaction before making further changes.";
+    } else if (e.uncertain || e.status === undefined) {
+      pendingSubmission = submission;
+      $("form-error").textContent =
+        "The save could not be confirmed. Your submitted details are kept. Retry the same save to check its result; do not add another transaction.";
+    } else {
+      pendingSubmission = null;
+      $("form-error").textContent = e.message;
+    }
   } finally {
-    $("save").disabled = false;
-    $("dismiss").disabled = false;
+    saving = false;
+    editorState();
   }
 }
 edit.onsubmit = (event) => {
   event.preventDefault();
   save();
 };
-$("dismiss").onclick = () => {
-  if (confirm("Dismiss this review item? It will remain excluded from totals."))
-    save(true);
+$("dismiss").onclick = () => confirmEditor("dismiss");
+$("review-latest").onclick = () => confirmEditor("latest");
+async function reviewLatest() {
+  if (!formConflict || reviewingLatest || !$("editor").open) return;
+  const id = selected?.id || creationId,
+    version = editorVersion;
+  reviewingLatest = true;
+  editorState();
+  $("form-error").textContent = "Loading the latest saved transaction…";
+  try {
+    const latest = await api("/api/expenses/" + id);
+    if (version !== editorVersion || !$("editor").open) return;
+    // Consent above permits replacement only after a successful bounded read.
+    discardEditor();
+    openEditor(latest);
+    updateLinkedRecord(latest);
+  } catch (e) {
+    if (version !== editorVersion || !$("editor").open) return;
+    $("form-error").textContent =
+      e.status === 404
+        ? "The saved transaction is unavailable. Your draft is kept here."
+        : "The latest transaction could not be loaded. Your draft is kept here. Try Review latest again.";
+  } finally {
+    if (version === editorVersion) {
+      reviewingLatest = false;
+      editorState();
+    }
+  }
+}
+function launchState(state) {
+  $("transaction-launch").hidden = state === "none";
+  $("transaction-message").textContent =
+    state === "loading"
+      ? "Loading transaction…"
+      : state === "ready"
+        ? "Your linked transaction is ready."
+        : state === "network"
+          ? "The transaction could not be loaded. Please try again."
+          : "This transaction is unavailable.";
+  $("transaction-retry").hidden = state !== "network";
+  $("transaction-open").hidden = state !== "ready";
+  telegram.update();
+}
+function updateLinkedRecord(record, dismissed = false) {
+  if (
+    launchSelection?.kind !== "transaction" ||
+    launchSelection.id !== record.id
+  )
+    return;
+  // A confirmed write or explicit latest read supersedes any earlier lookup,
+  // including one that has not populated the linked-record cache yet.
+  launchVersion++;
+  launchRecord = dismissed ? null : record;
+  launchState(dismissed ? "unavailable" : "ready");
+}
+async function loadLaunch() {
+  if (launchSelection?.kind !== "transaction") return;
+  const version = ++launchVersion,
+    editorAtLaunch = editorVersion,
+    navigationAtLaunch = navigationVersion,
+    id = launchSelection.id;
+  launchRecord = null;
+  launchState("loading");
+  try {
+    const record = await api("/api/expenses/" + id);
+    if (version !== launchVersion) return;
+    launchRecord = record;
+    launchState("ready");
+    if (
+      navigationAtLaunch === navigationVersion &&
+      editorAtLaunch === editorVersion &&
+      !$("editor").open
+    )
+      openEditor(record);
+  } catch (e) {
+    if (version !== launchVersion) return;
+    launchState(e.status === 404 ? "unavailable" : "network");
+  }
+}
+function syncLaunch() {
+  const selection = transactionSelector(location.search),
+    key = JSON.stringify(selection);
+  if (key === launchKey) return;
+  launchKey = key;
+  launchSelection = selection;
+  launchVersion++;
+  launchRecord = null;
+  if (selection.kind === "transaction") loadLaunch();
+  else launchState(selection.kind === "none" ? "none" : "unavailable");
+}
+function leaveLaunch(toLedger = false) {
+  if ($("editor").open) return closeEditor();
+  const url = new URL(location.href);
+  url.searchParams.delete("transaction");
+  if (toLedger && url.hash === "#month") url.hash = "";
+  history.replaceState(null, "", url);
+  route();
+}
+$("transaction-retry").onclick = loadLaunch;
+$("transaction-open").onclick = () => {
+  if (launchRecord) openEditor(launchRecord);
 };
+$("transaction-return").onclick = () => leaveLaunch(true);
 // Month view. Amounts stay exact BigInt strings; Number is used only for shading.
 const tashkentMonth = (value) => dayKey(value).slice(0, 7);
 let month = tashkentMonth(Date.now()),
@@ -931,6 +1251,13 @@ $("next-month").onclick = () => {
   loadMonth();
 };
 function route() {
+  routedHref = location.href;
+  if (navigationKey !== location.href) {
+    navigationKey = location.href;
+    navigationVersion++;
+  }
+  syncLaunch();
+  telegram.update();
   const monthView = location.hash === "#month";
   $("ledger-view").hidden = monthView;
   $("month-view").hidden = !monthView;
@@ -944,6 +1271,11 @@ function route() {
   // Edits in the ledger change the month, so reload each time it opens.
   if (monthView) loadMonth();
 }
-window.onhashchange = route;
+// A hash navigation fires both events; route once per URL.
+function onNavigate() {
+  if (location.href !== routedHref) route();
+}
+window.onhashchange = onNavigate;
+window.onpopstate = onNavigate;
 route();
 load();

@@ -10,6 +10,7 @@ import {
   tashkentDay,
 } from "./domain";
 import { manualDetails } from "./manual";
+import { isUuid } from "./telegram-links";
 import { getExpense, saveManual, sql } from "./store";
 export const json = (data: unknown, status = 200) =>
   Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -86,12 +87,7 @@ export async function api(
     } catch {
       return json({ error: "Invalid JSON body" }, 400);
     }
-    if (
-      typeof body.id !== "string" ||
-      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
-        body.id,
-      )
-    )
+    if (!isUuid(body.id))
       return json({ error: "A valid request ID is required" }, 400);
     let details;
     try {
@@ -99,7 +95,7 @@ export async function api(
     } catch (e) {
       return json({ error: (e as Error).message }, 400);
     }
-    const result = await saveManual(env, body.id, details, now);
+    const result = await saveManual(env, body.id.toLowerCase(), details, now);
     if (result.conflict)
       return json(
         {
@@ -264,7 +260,14 @@ export async function api(
       nextOffset: rows.results.length > 50 ? Number(raw) + 50 : null,
     });
   }
-  const m = /^\/api\/expenses\/([a-f0-9-]{36})$/.exec(path);
+  const idPart = /^\/api\/expenses\/([^/]+)$/.exec(path)?.[1];
+  const m = isUuid(idPart) ? [path, idPart.toLowerCase()] : null;
+  if (m && request.method === "GET") {
+    const existing = await getExpense(env, m[1]);
+    return existing && !existing.dismissed
+      ? json(existing)
+      : json({ error: "Not found" }, 404);
+  }
   if (m && request.method === "PATCH") {
     const existing = await getExpense(env, m[1]);
     if (!existing) return json({ error: "Not found" }, 404);

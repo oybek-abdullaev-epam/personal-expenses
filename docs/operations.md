@@ -59,6 +59,7 @@ Run all of them from the project root. They read the git-ignored `.env.productio
 | `node scripts/integrations.mjs webhook` | `setWebhook` to `<BACKEND_URL>/telegram/webhook` with the secret, for `message` and `callback_query` only. | Reads config |
 | `node scripts/integrations.mjs profile <site-url>` | Sets the bot's description and About text with the dashboard link, then reads them back to verify. | Reads config |
 | `node scripts/integrations.mjs photo assets/telegram-avatar.jpg` | Uploads the bot avatar and verifies it. | Reads config |
+| `node scripts/mini-app-menu.mjs capture\|apply [app-url]\|restore\|check` | Captures default/owner menus, applies and verifies only the owner Open tracker override, restores its exact prior value, or verifies local app configuration. Never changes webhook/updates. | Reads `.env.production.json`; writes exclusive mode-600 `.env.telegram-menu.json` (ignored) |
 | `node scripts/integrations.mjs activate` | `POST /api/activate`. It is idempotent and prints the boundary. | Reads config |
 | `node scripts/switch-gmail.mjs verify\|record-pause\|status\|install-token\|reset\|health\|finish` | The mailbox-switch procedure. **Don't run it without an explicit decision to switch inboxes.** See [SETUP.md](SETUP.md#switching-the-gmail-inbox-one-time-maintenance-procedure). | Reads `.env.production.json` and `.env.gmail-switch.json`. Writes `.env.gmail-switch-state.json` |
 | `npm run preview` (`scripts/preview.ts`) | Local synthetic dashboard. | Nothing persistent |
@@ -87,7 +88,7 @@ It exists only for the one-time mailbox switch, which clears all transaction his
 - **Backlog speed** is 25 emails per 5-minute run.
 - **An unexpected exception becomes 503 with nothing logged.** To debug it, reproduce the failing request in a test.
 - **Replaying a manual create after the row was edited** returns 200 with the *edited* row, because the comparison uses the original snapshot.
-- **The reminder is skipped, not delayed,** if the service is down for the whole 20:00–20:59 Tashkent hour.
+- **The reminder is skipped, not delayed,** if the service is down for the whole 21:00–21:59 Tashkent hour.
 - **Review items keep no email content.** To resolve one, find the original email in Gmail yourself.
 - **Anyone with the dashboard URL can view and edit data.** This is intentional. The URL is the only protection.
 - **Manual entries are never matched to later email receipts.** If you add a card purchase by hand and the email arrives later, you get two rows.
@@ -95,3 +96,9 @@ It exists only for the one-time mailbox switch, which clears all transaction his
 ## Backups
 
 D1 has built-in **Time Travel** (point-in-time restore within Cloudflare's retention window), which you use through the Cloudflare dashboard or `wrangler d1 time-travel`. No additional backup is configured. For an extra snapshot, `npx wrangler d1 export expenses --remote --config backend/wrangler.toml --output <file>` writes a SQL dump. That file contains personal financial data, so keep it out of the repository.
+
+## Mini App launch recovery
+
+If **Open tracker** fails, open the ordinary dashboard via the `SITE_URL` link. Missing or invalid `TELEGRAM_APP_URL` omits app buttons without blocking notification delivery. Description prompts remain ForceReply and Gmail reconnection remains owner-operated in an ordinary browser; launch context supplies no access grant.
+
+Keep `.env.telegram-menu.json` from the original capture. `node scripts/mini-app-menu.mjs restore` restores and verifies the prior owner override after failed or ambiguous configuration. It never changes the default menu. Disable Worker app-button configuration and use the deployment rollback in [deployment.md](deployment.md#telegram-mini-app-controlled-rollout) if needed. Notification retries and cleanup continue in their existing outbox; no queue reset is part of recovery.

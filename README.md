@@ -52,4 +52,10 @@ New to the code? Start at **[docs/README.md](docs/README.md)**.
 | [Glossary](docs/glossary.md)                           | Domain and technical terms                            |
 | [History](docs/history.md)                             | Dated deployment and status records                   |
 
-The agreed scope is in [PLAN.md](PLAN.md), and the project rules are in [AGENTS.md](AGENTS.md). The live checks still outstanding are listed in [next_steps.md](next_steps.md). Unscheduled ideas are in [future-plans/](future-plans/README.md); these are proposals, not implemented features.
+The agreed scope is in [PLAN.md](PLAN.md), and the project rules are in [AGENTS.md](AGENTS.md). The live checks still outstanding are listed in [next_steps.md](next_steps.md). Ideas and their implementation status are indexed in [future-plans/](future-plans/README.md).
+
+## Telegram Mini App
+
+Deployed on 3 October 2026. Use **Open tracker** in the bot menu to open the shared dashboard directly in Telegram. New transaction messages and receipts include **View transaction**; the ordinary browser dashboard stays available. Theme, viewport, Back navigation, inline draft protection, exact uncertain-save retries, and explicit conflict recovery are supported.
+
+Telegram Web and ordinary-browser checks passed, alongside 88 automated tests and independent review. Test data/messages were removed and existing history preserved. Native clients, naturally arriving receipts, and the real 21:00 summary remain deferred. See [completed tickets](future-plans/telegram-mini-app/TICKETS.md), [rollout evidence](docs/verification/telegram-mini-app/MA-08.md), and [remaining checks](next_steps.md).

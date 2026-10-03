@@ -31,6 +31,7 @@ export interface Env {
   TELEGRAM_WEBHOOK_SECRET: string;
   TELEGRAM_OWNER_ID: string;
   SITE_URL: string;
+  TELEGRAM_APP_URL?: string;
 }
 export interface Expense {
   id: string;

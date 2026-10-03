@@ -9,6 +9,7 @@ import {
   tashkentDay,
 } from "./domain";
 import { getExpense, sql } from "./store";
+import { trackerButton, transactionButton } from "./telegram-links";
 interface Outbox {
   id: string;
   expense_id: string | null;
@@ -216,19 +217,24 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
         markup: object | undefined;
       const isReceipt =
         row.kind === "receipt" || row.kind === "description_saved";
+      const appButton = trackerButton(env.TELEGRAM_APP_URL);
+      const recordButton = e
+        ? transactionButton(env.TELEGRAM_APP_URL, e.id)
+        : null;
       if (row.kind === "expense" && e) {
         text = `${summary(e)}\n\nChoose a category.`;
         const choices =
           e.direction === "income" ? INCOME_CATEGORIES : CATEGORIES;
         markup = {
-          inline_keyboard: Array.from(
-            { length: Math.ceil(choices.length / 2) },
-            (_, i) =>
+          inline_keyboard: [
+            ...Array.from({ length: Math.ceil(choices.length / 2) }, (_, i) =>
               choices.slice(i * 2, i * 2 + 2).map((c, j) => ({
                 text: c,
                 callback_data: `${e.direction === "income" ? "inc" : "cat"}:${e.id}:${i * 2 + j}`,
               })),
-          ),
+            ),
+            ...(recordButton ? [[recordButton]] : []),
+          ],
         };
       } else if (row.kind === "prompt" && e && !complete(e) && !e.dismissed) {
         text = `${summary(e)}\n\nReply to this message with a short description.`;
@@ -238,15 +244,21 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
         };
       } else if (isReceipt && e && complete(e)) {
         text = `✓ Saved\n${summary(e)}\n\n${e.direction === "income" ? e.income_category : e.category} · ${e.description}\n\nOpen dashboard: ${env.SITE_URL}`;
-        markup = { remove_keyboard: true };
-      } else if (row.kind === "review" && e)
+        // A message accepts one markup type. Keep ForceReply on its prompt;
+        // the standalone receipt uses an inline launch button when configured.
+        markup = recordButton
+          ? { inline_keyboard: [[recordButton]] }
+          : { remove_keyboard: true };
+      } else if (row.kind === "review" && e) {
         text = `An UZCARD email needs review (${e.review_reason}). It is excluded from spending totals.\n${env.SITE_URL}`;
-      else if (row.kind === "auth")
+        if (recordButton) markup = { inline_keyboard: [[recordButton]] };
+      } else if (row.kind === "auth")
         text = `Gmail authorization needs attention. Reconnect Google to resume email sync.\n${env.SITE_URL}`;
       else if (row.kind === "reminder") {
         // Drop stale summaries after their local date; re-read totals and outstanding details on retries.
         if (row.id === `reminder:${tashkentDay(current)}`)
           text = await dailySummary(env, current);
+        if (appButton) markup = { inline_keyboard: [[appButton]] };
       }
       if (text) {
         const sent = await telegram(env, "sendMessage", {

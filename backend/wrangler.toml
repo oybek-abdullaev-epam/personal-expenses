@@ -13,3 +13,4 @@ migrations_dir = "migrations"
 
 [vars]
 SITE_URL = "https://personal-expenses-liard-chi.vercel.app"
+TELEGRAM_APP_URL = "https://personal-expenses-liard-chi.vercel.app"
