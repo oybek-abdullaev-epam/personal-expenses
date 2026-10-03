@@ -1,12 +1,12 @@
 # Expense reimbursements
 
 - **ID:** FP-003
-- **Status:** Planned / not scheduled
+- **Status:** In progress — ER-01–ER-06 authorized 3 October 2026
 - **Recorded:** 2026-10-03
 - **Related work:** [Telegram Mini App (FP-002)](../telegram-mini-app/PLAN.md) · [Private multi-user pilot (FP-001)](../multi-user-pilot/PLAN.md)
 - **Planning material:** [Tickets and dependency graph](TICKETS.md) · [Risk register](RISKS.md) · [Idea index](../README.md)
 
-This specification records the owner's accepted future experience. It does not schedule implementation, authorize production changes, or describe deployed functionality. The root [PLAN.md](../../PLAN.md) remains the current implementation agreement. Reimbursements currently count as income without reducing spending; that remains true until this proposal is separately scheduled, implemented, and deployed.
+The owner authorized implementation through ER-06 on 3 October 2026. This specification records the accepted experience; production deployment remains separately gated by ER-07. The root [PLAN.md](../../PLAN.md) remains the current implementation agreement. Reimbursements currently count as income without reducing spending; that remains true until this proposal is separately scheduled, implemented, and deployed.
 
 ## Problem and audience
 
@@ -120,4 +120,4 @@ See [RISKS.md](RISKS.md). Repository baseline: [data model](../../docs/data-mode
 
 ## Completion evidence
 
-Specification and backlog recorded only. Not implemented or scheduled. All implementation acceptance checks remain open.
+Implementation scheduled. See [contracts](CONTRACTS.md) and [orchestration record](ORCHESTRATION.md) for progress and evidence. No production deployment.

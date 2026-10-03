@@ -1,0 +1,45 @@
+# FP-003 implementation contracts
+
+Accepted for implementation on 3 October 2026. Implements the proposal without changing the single-owner public access policy. ER-01–ER-06 implementation, local validation, feature-branch commits and pushes are authorized. ER-07 production deployment, real-bot changes/messages and live writes require separate authorization. Native clients are deferred; desktop/mobile browser widths and actual Telegram Web are required, with hosted-dependent checks explicitly pending until authorized.
+
+## Storage and completion
+
+Add `payer_name TEXT NOT NULL DEFAULT ''` and nullable `reimbursement_expense_id TEXT REFERENCES expenses(id)` with a parent index, using migration 0005. `description` is the optional reimbursement note (trimmed, at most 500 existing JS characters). Payer names are trimmed, interior whitespace preserved, at most 100 Unicode code points. No guesses/backfill, changed bank values, manual snapshots, or migration sends.
+
+A reimbursement is resolved, undismissed income classified Reimbursement. It is complete only with a nonblank payer and valid link. Ordinary completion still requires category and description. One shared domain predicate and SQL predicate govern completion/needs-details. One shared money projection governs all reports.
+
+## Mutation API and atomicity
+
+Keep POST /api/expenses and PATCH /api/expenses/:id. Reimbursement fields are `payer_name`, `reimbursement_expense_id` (UUID or null). PATCH retains `version`. Any link/relink/unlink requires `parent_versions`, an object mapping every distinct old/new parent UUID to its expected integer version. Creation with a link requires the selected parent version. Every permitted linked source change (including payer, note, amount, date and other displayed details) also requires the linked parent version because its displayed details or cost change. Missing versions return 400; stale versions and state/capacity conflicts return 409; invalid input returns 400; missing records return 404. Responses retain {error: message}, optionally a stable `code`.
+
+A single conditional repayment update changes link and metadata atomically. DB triggers validate incoming Reimbursement source, resolved/undismissed expense target, equal currency, parent time <= repayment time, nonblank payer and total allocations <= original amount. Exclude the current allocation when replacing it. Parent writes validate all existing children; invalidating edits require explicit unlink first. Linked source financial/category edits that would invalidate a relationship are rejected even when combined with unlink: unlink is a separate save. Increment source version and each distinct affected parent version once for relationship or any linked source financial/date/detail changes. Triggers must not recurse on version-only updates. Guard direct API, Telegram, and manual writes.
+
+Receipt enqueue and Telegram update deduplication share the successful mutation's D1 transaction. A conditional update affecting zero rows must not enqueue or consume dependent effects. Retry the exact frozen request; a successful-but-lost PATCH followed by 409 uses Review latest, never a guessed new version. Preserve old manual_request strings and ordinary serialization byte-for-byte. New reimbursement creation snapshots include reimbursement metadata (not mutable parent versions); identical IDs/details return existing records even after later edits. Pending manual reimbursements can omit name/link/note. Linking validates after the existing-id retry check.
+
+## Read interfaces
+
+All financial API calls require `X-Tracker-Contract: reimbursements-v1`; absent/wrong values return 409 `{error: "Refresh the tracker to continue.", code: "refresh_required"}`. Health and protected administration are unchanged. Browser supplies this header and proxy forwards it unchanged, never adds it for stale clients. Backend authentication and proxy same-origin/JSON/body limits remain mandatory.
+
+Retain original `amount_minor`. Transaction projections add string `original_minor`, `reimbursed_minor`, `personal_spending_minor`, `pending_reimbursement_minor`; null raw review amounts project as zero. Income has zero personal spending. Include payer/link fields and `parent_versions` for linked-record editing. Detail has parent context sufficient to render current selection, or bounded child retrieval below; internal getExpense remains a raw storage read.
+
+GET /api/expenses/:id/reimbursement-candidates?q=&cursor=: 50 results, `{expenses, nextCursor}`, descending occurred_at then id, opaque base64url JSON cursor [occurred_at,id], validated strictly. q max 200, escaped literal LIKE over merchant/description. Source must be resolved undismissed Reimbursement. Candidates are eligible for the full repayment, including the current parent with its own allocation credited back. Return parent version, raw/context/projection values and `available_minor`. Candidate retrieval ignores current ledger filters and never writes.
+
+GET /api/expenses/:id/reimbursements?cursor=: same 50-result envelope/cursor ordering; resolved parent required; rows contain named/date/note metadata. GET detail includes current parent summary/version for linked reimbursements. New routes are GET-only through strict UUID proxy allowlists. Reads remain uncached and bounded; avoid per-row database query loops.
+
+## Reporting and filters
+
+Default All shows ordinary records and pending reimbursements, hiding linked repayments. Spending shows adjusted parents; Income excludes classified reimbursements. category=Reimbursement overrides direction and shows all repayments. Remaining filters intersect. Search targets the displayed record's merchant/description and payer_name for reimbursement inspection; dates use displayed record dates. Parent deductions always include all linked repayments regardless of repayment dates/search/category filters.
+
+Keep existing aggregate fields, with spending adjusted and income excluding classified reimbursements; add string pending_reimbursement_minor per currency. net_minor now means income minus personal spending. Month/category/day/average use the same projection; preserve activation and pre-activation handling. Zero-cost parents stay visible/count once. Dedicated reimbursement-filter financial spending/income are zero and pending is separately reported. Exact per-record values remain safe integers; aggregate with BigInt and return strings. UTC storage and Asia/Tashkent display/date ranges remain unchanged.
+
+## UI and Telegram
+
+Use the existing shared editor, transaction selector and in-memory draft recovery. Reimbursement editor has From, optional Note, searchable paged expense picker, preview and separate pending-save/link actions. Expense details show paid/reimbursed/your spending and paged named repayments with correction links. New manual parent creation preserves the reimbursement draft and returns to its picker. All labels render as plain text. No financial drafts in persistent browser storage.
+
+Reimbursement category callbacks offer Link to expense rather than generic description. Delivery checks current state, stale replies cannot complete reimbursements, and invalidating callbacks are rejected without corrupting deduplication. Newly completed email reimbursements queue deterministic receipt:<id> only if no receipt was actually delivered. Retained telegram_messages kind=receipt rows are durable actual-delivery evidence even after cleanup. sent_at alone on an outbox job is not delivery evidence because skipped jobs also receive it. Revive/defer previously skipped receipt intents on later completion, coalesce legacy description_saved and receipt jobs, and check delivery evidence at send time. Migration creates no sends. Corrections never replace receipts. Manual rows never get per-record messages. Keep existing timeout ambiguity, outbox claims, retention and cleanup. Summary uses current adjusted spending, pending completion counts and existing Tashkent expiry/retry/empty-day behavior.
+
+## Release and evidence
+
+Prepare a separate release-pause Worker (authenticated read-only status, 503 application/webhook calls, scheduled no-op); never use mailbox-reset maintenance.ts. Rehearse pause/drain -> additive migration -> compatible frontend -> compatible backend/resume -> smoke. Drain prior invocation lifetimes and application leases before migration; preserve queues, cursors, updates and associations. After links exist, only reimbursement-aware code or release pause is safe recovery. Never roll back to pre-feature financial semantics.
+
+Required evidence: populated migration preservation; concurrent capacity/versions/failure rollback; manual snapshot retries; shared expected-value report matrix; notification duplicates/retries/stale associations; access and plaintext checks; local D1 execution; desktop/mobile screenshots and navigation; real Telegram Web explicitly pending if hosted changes are needed; npm test followed by npm run build; independent findings closed. No production release record until an actual authorized release.

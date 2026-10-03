@@ -1,6 +1,6 @@
 # ER-01: Scope promotion and implementation contracts
 
-- **Status:** Backlog
+- **Status:** Done
 - **Proposal:** [Expense reimbursements](../PLAN.md)
 - **Depends on:** None
 - **Risks:** [R01](../RISKS.md#r01), [R02](../RISKS.md#r02), [R04](../RISKS.md#r04), [R06](../RISKS.md#r06)
@@ -35,13 +35,13 @@ Future reimbursement schema and Expense/API types; list/detail/edit/candidate/to
 
 ## Acceptance checks
 
-- [ ] Scheduling authorization and root-scope reconciliation are recorded without claiming implementation or deployment.
-- [ ] CONTRACTS.md resolves every technical decision assigned to ER-01 in the proposal and remains consistent with required payer names, whole-payment links, pending treatment, and original-period reporting.
-- [ ] A concrete atomic approach is identified for concurrent capacity checks and failure-safe relinking, including every parent/repayment edit route.
-- [ ] Read/write examples distinguish original amounts from calculated net values, with exact money and explicit Tashkent dates.
-- [ ] Migration and recovery address old code ignoring new relationships rather than assuming schema readability is sufficient.
-- [ ] Client/access contracts, route restrictions, synthetic verification scenarios, and production authorization boundaries are recorded.
+- [x] Scheduling authorization and root-scope reconciliation are recorded without claiming implementation or deployment.
+- [x] CONTRACTS.md resolves every technical decision assigned to ER-01 in the proposal and remains consistent with required payer names, whole-payment links, pending treatment, and original-period reporting.
+- [x] A concrete atomic approach is identified for concurrent capacity checks and failure-safe relinking, including every parent/repayment edit route.
+- [x] Read/write examples distinguish original amounts from calculated net values, with exact money and explicit Tashkent dates.
+- [x] Migration and recovery address old code ignoring new relationships rather than assuming schema readability is sufficient.
+- [x] Client/access contracts, route restrictions, synthetic verification scenarios, and production authorization boundaries are recorded.
 
 ## Completion evidence
 
-Not started. Record the scheduling reference, contract links, resolved decisions, and remaining limitations. Use synthetic or redacted examples only.
+[ER-01 evidence](../../../docs/verification/expense-reimbursements/ER-01.md), [contracts](../CONTRACTS.md), and [delivery record](../ORCHESTRATION.md). Scheduling, baseline and independent contract review complete. Production authorization remains separate.

@@ -1,17 +1,17 @@
 # Expense reimbursement tickets
 
-- **Proposal status:** Planned / not scheduled
-- **Ticket status:** All Backlog
+- **Proposal status:** In progress — authorized 3 October 2026
+- **Ticket status:** See [orchestration record](ORCHESTRATION.md) for implementation and delivery state.
 - **Proposal:** [Expense reimbursements](PLAN.md)
 - **Risks:** [Risk register](RISKS.md)
 
-These are future implementation tickets, not authorization to start or deploy. Dependencies are completion prerequisites; transitive edges are omitted. Keep this index, graph, and individual metadata consistent.
+The owner authorized ER-01–ER-06 implementation on 3 October 2026. ER-07 production work remains separately gated. Dependencies are completion prerequisites; transitive edges are omitted. Keep this index, graph, and individual metadata consistent.
 
 ## Ordered ticket index
 
 | ID | Ticket | Status | Depends on |
 | --- | --- | --- | --- |
-| [ER-01](tickets/ER-01-contracts.md) | Scope promotion and implementation contracts | Backlog | — |
+| [ER-01](tickets/ER-01-contracts.md) | Scope promotion and implementation contracts | Done | — |
 | [ER-02](tickets/ER-02-persistence.md) | Reimbursement persistence and atomic mutations | Backlog | [ER-01](tickets/ER-01-contracts.md) |
 | [ER-03](tickets/ER-03-reporting.md) | Candidate lookup and consistent personal-spending reports | Backlog | [ER-02](tickets/ER-02-persistence.md) |
 | [ER-04](tickets/ER-04-interface.md) | Shared picker, payer entry, and expense details | Backlog | [ER-03](tickets/ER-03-reporting.md) |
