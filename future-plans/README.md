@@ -8,6 +8,7 @@ Ideas and proposals for later work. Saving an idea or marking it planned does no
 | --- | --- | --- | --- | --- |
 | FP-001 | [Private multi-user pilot](multi-user-pilot/PLAN.md) | Planned / not scheduled | Private accounts for 5–10 friends or family using UZCARD emails, Gmail, and Telegram; preserve the owner's history. | [Tickets and dependencies](multi-user-pilot/TICKETS.md) · [Risks](multi-user-pilot/RISKS.md) |
 | FP-002 | [Telegram Mini App](telegram-mini-app/PLAN.md) | Done — 3 October 2026 | Open the existing tracker inside Telegram; no login, bot launch buttons, and transaction links under the existing public-access policy. | [Tickets and dependencies](telegram-mini-app/TICKETS.md) · [Risks](telegram-mini-app/RISKS.md) · [Contracts](telegram-mini-app/CONTRACTS.md) |
+| FP-003 | [Expense reimbursements](expense-reimbursements/PLAN.md) | Planned / not scheduled | Link named repayments to an earlier expense and show personal spending after reimbursement. | [Tickets and dependencies](expense-reimbursements/TICKETS.md) · [Risks](expense-reimbursements/RISKS.md) |
 
 ## Idea inbox
 
