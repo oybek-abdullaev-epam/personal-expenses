@@ -1,7 +1,7 @@
 # Telegram Mini App
 
 - **ID:** FP-002
-- **Status:** In progress
+- **Status:** Done — 3 October 2026
 - **Recorded:** 2026-10-01
 - **Related work:** [Private multi-user pilot (FP-001)](../multi-user-pilot/PLAN.md)
 - **Planning material:** [Tickets and dependency graph](TICKETS.md) · [Risk register](RISKS.md) · [Idea index](../README.md)
@@ -57,7 +57,7 @@ Use a bot menu **Open tracker** button and private-chat message buttons. Telegra
 
 Configure the menu through `setChatMenuButton` and inline `web_app` buttons with the HTTPS Vercel URL. Main Mini App/BotFather registration, profile launch buttons, and `startapp` links are outside this release. The concrete payloads and browser fallback are in [CONTRACTS.md](CONTRACTS.md).
 
-Use `?transaction=<UUID>` with one strictly validated UUID selector, without embedding amounts, descriptions, credentials, or personal identifiers in launch URLs. Missing, removed, or malformed targets produce an unavailable state and a path back to the Ledger. The current API has list and PATCH operations but no single-transaction GET; MA-06 adds bounded `GET /api/expenses/:id` under the existing public proxy policy rather than assuming the loaded list contains the record.
+Use `?transaction=<UUID>` with one strictly validated UUID selector, without embedding amounts, descriptions, credentials, or personal identifiers in launch URLs. Missing, removed, or malformed targets produce an unavailable state and a path back to the Ledger. MA-06 added bounded `GET /api/expenses/:id` under the existing public proxy policy rather than assuming the loaded list contains the record.
 
 Use `TELEGRAM_APP_URL` for the HTTPS Vercel Mini App destination, `SITE_URL` for browser/recovery links, and `BACKEND_URL` only for the server proxy; do not blindly replace every use of `SITE_URL`. Audit receipts, summaries, review alerts, Gmail-reconnect notices, bot profile links, and old messages. Link changes must not alter transaction-to-reply associations or create a second notification pipeline. Completing details through the Mini App must retain existing dashboard-edit behavior and safely coexist with pending chat prompts.
 
@@ -103,4 +103,4 @@ See [RISKS.md](RISKS.md). Official Telegram references above were checked on **2
 
 ## Completion evidence
 
-MA-01 contract is recorded on 2026-10-01; implementation is in progress. Real Telegram Web launch and downstream acceptance evidence must be recorded by MA-05/MA-07/MA-08; this scope update does not claim them passed.
+All six active tickets are complete. [MA-08 rollout evidence](../../docs/verification/telegram-mini-app/MA-08.md) records actual deployment and Telegram Web/browser results. Native clients and natural receipt/21:00 observations remain deferred.

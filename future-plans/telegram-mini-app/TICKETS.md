@@ -1,7 +1,7 @@
 # Telegram Mini App tickets
 
-- **Proposal status:** In progress
-- **Ticket status:** MA-01/MA-04/MA-05/MA-06/MA-07 Done; MA-08 Ready
+- **Proposal status:** Done
+- **Ticket status:** All six active tickets Done; native/natural observations deferred
 - **Proposal:** [Telegram Mini App](PLAN.md)
 - **Risks:** [Risk register](RISKS.md)
 
@@ -16,7 +16,7 @@ These are local implementation tickets. The owner authorized implementation and 
 | [MA-05](tickets/MA-05-launch.md) | Bot launch integration | Done | [MA-04](tickets/MA-04-interface.md) |
 | [MA-06](tickets/MA-06-transaction-links.md) | Transaction navigation and chat coexistence | Done | [MA-05](tickets/MA-05-launch.md) |
 | [MA-07](tickets/MA-07-validation.md) | Integrated validation and recovery rehearsal | Done | [MA-06](tickets/MA-06-transaction-links.md) |
-| [MA-08](tickets/MA-08-rollout.md) | Controlled owner rollout | Ready | [MA-07](tickets/MA-07-validation.md) |
+| [MA-08](tickets/MA-08-rollout.md) | Controlled owner rollout | Done | [MA-07](tickets/MA-07-validation.md) |
 
 ## Dependency graph
 

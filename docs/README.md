@@ -34,6 +34,8 @@ Every five minutes a **Cloudflare Worker** searches a dedicated Gmail inbox for 
 | What happened when? | [history.md](history.md) |
 | What's planned next? | [next_steps.md](../next_steps.md), [future-plans/](../future-plans/README.md) |
 
+Mini App deployment and browser verification are recorded in [MA-08 evidence](verification/telegram-mini-app/MA-08.md); recovery steps are in [deployment.md](deployment.md#mini-app-cutover-gates-and-recovery-rehearsal).
+
 ## Other files worth knowing
 
 - [AGENTS.md](../AGENTS.md): rules for anyone changing the code, human or AI.

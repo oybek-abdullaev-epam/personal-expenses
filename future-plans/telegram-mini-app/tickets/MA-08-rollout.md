@@ -1,6 +1,6 @@
 # MA-08: Controlled owner rollout
 
-- **Status:** Ready
+- **Status:** Done
 - **Proposal:** [Telegram Mini App](../PLAN.md)
 - **Depends on:** [MA-07](MA-07-validation.md)
 - **Risks:** [R05](../RISKS.md#r05)
@@ -31,12 +31,12 @@ Production deployment/configuration, bot entry points, runtime access policy, an
 
 ## Acceptance checks
 
-- [ ] Visitors launch and use the tracker without login or Telegram identity verification; the ordinary browser dashboard remains functional.
-- [ ] Existing history, activation, progress, pending interactions, and notification delivery remain intact.
-- [ ] Telegram Web transaction navigation and synthetic receipt/classification checks pass; automated summary regressions preserve spending/empty-day/outstanding-details behavior. Natural receipt and real 21:00 observations remain explicitly deferred, not claimed passed.
-- [ ] Rollback/recovery preserves stored data, public dashboard access, and existing backend/admin/webhook protections.
-- [ ] Deployment references, observed results, open/deferred checks, and support/recovery instructions are recorded before marking this scoped rollout complete.
+- [x] Visitors launch and use the tracker without login or Telegram identity verification; the ordinary browser dashboard remains functional.
+- [x] Existing history, activation, progress, pending interactions, and notification delivery remain intact.
+- [x] Telegram Web transaction navigation and synthetic receipt/classification checks pass; automated summary regressions preserve spending/empty-day/outstanding-details behavior. Natural receipt and real 21:00 observations remain explicitly deferred, not claimed passed.
+- [x] Rollback/recovery preserves stored data, public dashboard access, and existing backend/admin/webhook protections.
+- [x] Deployment references, observed results, open/deferred checks, and support/recovery instructions are recorded before marking this scoped rollout complete.
 
 ## Completion evidence
 
-Not started. Record authorization, deployment references, redacted live results, and any unobserved acceptance checks separately from automated evidence.
+See [MA-08 rollout evidence](../../../docs/verification/telegram-mini-app/MA-08.md) and [deployment history](../../../docs/history.md): stable frontend/backend/menu deployed, Telegram Web record edit/reopen and browser access passed, exact test cleanup and history/activation continuity verified. Native/natural observations remain deferred.
