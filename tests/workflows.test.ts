@@ -147,6 +147,16 @@ test("category updates and crossed replies associate by message ID and deduplica
     "Each saved description delivers one standalone receipt",
   );
   assert.ok(confirmations.every((body) => body.reply_parameters === undefined));
+  // One message takes one markup type: the launch button replaces remove_keyboard,
+  // and ForceReply has already ended once the owner replied.
+  assert.ok(
+    confirmations.every(
+      (body) =>
+        Object.keys(body.reply_markup).join() === "inline_keyboard" &&
+        body.reply_markup.inline_keyboard.length === 1 &&
+        body.reply_markup.inline_keyboard[0].length === 1,
+    ),
+  );
   assert.ok(
     confirmations.every(
       (body) =>
