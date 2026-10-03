@@ -39,6 +39,7 @@ Mini App deployment and browser verification are recorded in [MA-08 evidence](ve
 ## Other files worth knowing
 
 - [AGENTS.md](../AGENTS.md): rules for anyone changing the code, human or AI.
+- [Document Feature Idea](../.agents/skills/document-feature-idea/SKILL.md): project Codex skill for saving future proposals with specs, backlog tickets, dependency graphs, and risks. Invoke it with `$document-feature-idea`; its read-only checker and isolated tests live beside the skill.
 - [CONTEXT.md](../CONTEXT.md): the domain vocabulary.
 - [`.claude/skills/`](../.claude/skills): step-by-step runbooks for deploying the backend and the website, and for UI work. An AI agent can follow them, and they are also a readable checklist for humans.
 

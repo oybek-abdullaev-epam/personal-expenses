@@ -1,0 +1,4 @@
+interface:
+  display_name: "Document Feature Idea"
+  short_description: "Save feature specs, tickets, dependencies, and risks"
+  default_prompt: "Use $document-feature-idea to document this future feature with a spec, backlog tickets, dependencies, and risks."
