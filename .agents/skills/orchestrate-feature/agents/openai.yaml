@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feature Orchestrator"
+  short_description: "Implement planned features with verified subagent work"
+  default_prompt: "Use $orchestrate-feature to implement the selected future idea end to end, following its dependencies, verifying each milestone with artifacts, and committing and pushing each completed step."
