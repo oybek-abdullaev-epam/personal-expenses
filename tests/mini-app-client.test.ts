@@ -96,11 +96,12 @@ function forms(fetch: Function) {
     launchVersion: 0,
     navigationVersion: 0,
     navigationKey: null,
+    routedHref: null,
     launchRecord: null,
   };
   runInNewContext(
     client.slice(
-      client.indexOf("async function api("),
+      client.indexOf("function timeoutSignal("),
       client.indexOf("function node("),
     ) +
       client.slice(
@@ -802,4 +803,134 @@ test("explicit conflict recovery supersedes an older pending launch lookup", asy
   assert.equal(context.launchRecord.version, 8);
   nodes["transaction-open"].onclick();
   assert.equal(context.selected.version, 8);
+});
+
+test("an uncertain dismiss keeps its intent when retried", async () => {
+  let attempts = 0;
+  const { context, nodes } = forms(async (_: string, options: any) => {
+    if (!options.method) return Response.json(transaction());
+    if (++attempts === 1) throw Error("lost response");
+    return Response.json({
+      ...transaction(firstId, 4),
+      dismissed_at: "2026-10-02T00:00:00Z",
+    });
+  });
+  context.discardEditor();
+  context.location.search = `?transaction=${firstId}`;
+  context.route();
+  await settle();
+  await context.save(true);
+  assert.equal(context.pendingSubmission.dismiss, true);
+  assert.equal(nodes.save.textContent, "Retry dismiss");
+  await context.save();
+  assert.equal(nodes.toast.textContent, "Review dismissed");
+  assert.equal(context.launchRecord, null);
+  assert.equal(
+    nodes["transaction-message"].textContent,
+    "This transaction is unavailable.",
+  );
+});
+
+test("a 409 on retrying an uncertain update says the earlier save may have applied", async () => {
+  let patches = 0;
+  const { context, nodes } = forms(async (_: string, options: any) => {
+    if (++patches === 1) throw Error("lost response");
+    return Response.json(
+      { error: "This transaction changed" },
+      { status: 409 },
+    );
+  });
+  context.discardEditor();
+  context.openEditor(transaction());
+  await context.save();
+  assert.equal(
+    nodes["form-error"].textContent.includes("could not be confirmed"),
+    true,
+  );
+  await context.save();
+  assert.equal(context.formConflict, true);
+  assert.match(nodes["form-error"].textContent, /may be your earlier save/);
+  assert.equal(nodes["review-latest"].hidden, false);
+});
+
+test("leaving the form after an unconfirmed save refreshes the Ledger and Month", async () => {
+  const { context, nodes } = forms(async () => {
+    throw Error("lost response");
+  });
+  let loads = 0,
+    months = 0;
+  context.load = async () => loads++;
+  context.loadMonth = async () => months++;
+  await context.save();
+  context.closeEditor();
+  nodes["confirm-discard"].onclick();
+  assert.equal(nodes.editor.open, false);
+  assert.equal(loads, 1);
+  assert.equal(months, 0);
+  context.openEditor();
+  context.location.hash = "#month";
+  context.pendingSubmission = {
+    path: "/api/expenses",
+    method: "POST",
+    body: "{}",
+  };
+  context.closeEditor();
+  nodes["confirm-discard"].onclick();
+  assert.equal(loads, 2);
+  assert.equal(months, 1);
+});
+
+test("discarding an ordinary draft does not reload", () => {
+  const { context, nodes } = forms(async () => Response.json({}));
+  let loads = 0;
+  context.load = async () => loads++;
+  fieldsDirty(context);
+  context.closeEditor();
+  nodes["confirm-discard"].onclick();
+  assert.equal(loads, 0);
+});
+function fieldsDirty(context: any) {
+  context.edit.elements.description.value = "Changed";
+}
+
+test("requests still time out when AbortSignal.timeout is unavailable", async () => {
+  let signal: AbortSignal | undefined;
+  const { context } = forms(async (_: string, options: any) => {
+    signal = options.signal;
+    return Response.json({});
+  });
+  let fire: Function = () => {};
+  context.AbortSignal = {};
+  context.AbortController = AbortController;
+  context.setTimeout = (fn: Function, ms: number) => {
+    assert.equal(ms, 20000);
+    fire = fn;
+  };
+  await context.api("/api/health");
+  assert.equal(signal?.aborted, false);
+  fire();
+  assert.equal(signal?.aborted, true);
+});
+
+test("one hash navigation routes once even though two events fire", () => {
+  const { context } = forms(async () => Response.json({}));
+  let months = 0;
+  context.loadMonth = async () => months++;
+  context.route();
+  context.location.hash = "#month";
+  context.onNavigate();
+  context.onNavigate();
+  assert.equal(months, 1);
+  context.location.hash = "";
+  context.onNavigate();
+  context.onNavigate();
+  assert.equal(months, 1);
+  assert.equal(context.navigationVersion, 3);
+});
+
+test("outside Telegram, viewport events leave the CSS fallbacks alone", () => {
+  const h = hostHarness();
+  h.window.innerHeight = 320;
+  h.listeners.resize();
+  assert.deepEqual(h.properties, {});
 });

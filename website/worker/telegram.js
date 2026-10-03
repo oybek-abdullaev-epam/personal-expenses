@@ -32,10 +32,11 @@ function createTelegramAdapter({ onBack, canGoBack, hasUnsavedChanges }) {
     call(host, "setBottomBarColor", "secondary_bg_color");
   }
   function viewport() {
+    // Ordinary browsers keep the CSS fallbacks (100dvh, zero insets).
+    if (!host) return;
     const visible = window.visualViewport;
-    const height =
-      visible?.height || host?.viewportHeight || window.innerHeight;
-    const stable = host?.viewportStableHeight || height;
+    const height = visible?.height || host.viewportHeight || window.innerHeight;
+    const stable = host.viewportStableHeight || height;
     for (const [token, value] of [
       ["--app-height", height],
       ["--app-stable-height", stable],
@@ -44,8 +45,8 @@ function createTelegramAdapter({ onBack, canGoBack, hasUnsavedChanges }) {
         root.style.setProperty(token, value + "px");
     for (const edge of ["top", "right", "bottom", "left"]) {
       const values = [
-        host?.safeAreaInset?.[edge],
-        host?.contentSafeAreaInset?.[edge],
+        host.safeAreaInset?.[edge],
+        host.contentSafeAreaInset?.[edge],
       ];
       const inset = Math.max(
         0,
@@ -105,7 +106,6 @@ function createTelegramAdapter({ onBack, canGoBack, hasUnsavedChanges }) {
       event.returnValue = "";
     }
   });
-  viewport();
   connect();
   return { update, connect };
 }

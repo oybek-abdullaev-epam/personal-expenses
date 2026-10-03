@@ -34,6 +34,7 @@ let expenses = [],
   launchVersion = 0,
   navigationVersion = 0,
   navigationKey = null,
+  routedHref = null,
   launchRecord = null;
 const time = (value) =>
   new Intl.DateTimeFormat("en-GB", {
@@ -56,10 +57,17 @@ const money = (minor, currency) => {
     currency
   );
 };
+// AbortSignal.timeout is missing in older Telegram WebViews.
+function timeoutSignal(ms) {
+  if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
 async function api(path, options = {}) {
   const r = await fetch(path, {
     ...options,
-    signal: AbortSignal.timeout(20000),
+    signal: timeoutSignal(20000),
   });
   let data;
   try {
@@ -87,7 +95,6 @@ function transactionSelector(search) {
     return { kind: "none" };
   if (
     values.length !== 1 ||
-    values[0].length !== 36 ||
     !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
       values[0],
     )
@@ -485,7 +492,9 @@ function editorState() {
   $("review-latest").disabled =
     saving || reviewingLatest || Boolean(editorConfirmation);
   $("save").textContent = pendingSubmission
-    ? "Retry same save"
+    ? pendingSubmission.dismiss
+      ? "Retry dismiss"
+      : "Retry same save"
     : selected
       ? "Save changes"
       : "Add transaction";
@@ -546,7 +555,15 @@ $("confirm-discard").onclick = () => {
     $("editor-confirm").hidden = true;
     editorState();
     save(true);
-  } else discardEditor();
+  } else {
+    // An unconfirmed save may have committed; refresh so the ledger shows it.
+    const unconfirmed = Boolean(pendingSubmission);
+    discardEditor();
+    if (unconfirmed) {
+      load();
+      if (location.hash === "#month") loadMonth();
+    }
+  }
 };
 const telegram = createTelegramAdapter({
   onBack: () => {
@@ -665,7 +682,9 @@ async function save(dismiss = false) {
     path: creating ? "/api/expenses" : "/api/expenses/" + selected.id,
     method: creating ? "POST" : "PATCH",
     body: JSON.stringify(body),
+    dismiss,
   };
+  const dismissed = submission.dismiss;
   saving = true;
   editorState();
   $("form-error").textContent = "";
@@ -676,7 +695,7 @@ async function save(dismiss = false) {
       body: submission.body,
     });
     editorVersion++;
-    updateLinkedRecord(persisted, dismiss);
+    updateLinkedRecord(persisted, dismissed);
     pendingSubmission = null;
     editorConfirmation = null;
     $("editor-confirm").hidden = true;
@@ -684,17 +703,22 @@ async function save(dismiss = false) {
     editorBaseline = editorValues();
     $("editor").close();
     telegram.update();
-    $("toast").textContent = dismiss ? "Review dismissed" : "Transaction saved";
+    $("toast").textContent = dismissed
+      ? "Review dismissed"
+      : "Transaction saved";
     $("toast").hidden = false;
     setTimeout(() => ($("toast").hidden = true), 2500);
     await load();
     if (location.hash === "#month") await loadMonth();
   } catch (e) {
     if (e.status === 409) {
+      // A replay carries the old version, so a 409 may be our own earlier save.
+      const retried = Boolean(pendingSubmission);
       formConflict = true;
-      $("form-error").textContent =
-        e.message +
-        " Your draft is kept here. Review the latest saved transaction before making further changes.";
+      $("form-error").textContent = retried
+        ? "This transaction changed. That may be your earlier save. Your draft is kept here. Review the latest saved transaction before making further changes."
+        : e.message +
+          " Your draft is kept here. Review the latest saved transaction before making further changes.";
     } else if (e.uncertain || e.status === undefined) {
       pendingSubmission = submission;
       $("form-error").textContent =
@@ -1227,6 +1251,7 @@ $("next-month").onclick = () => {
   loadMonth();
 };
 function route() {
+  routedHref = location.href;
   if (navigationKey !== location.href) {
     navigationKey = location.href;
     navigationVersion++;
@@ -1246,7 +1271,11 @@ function route() {
   // Edits in the ledger change the month, so reload each time it opens.
   if (monthView) loadMonth();
 }
-window.onhashchange = route;
-window.onpopstate = route;
+// A hash navigation fires both events; route once per URL.
+function onNavigate() {
+  if (location.href !== routedHref) route();
+}
+window.onhashchange = onNavigate;
+window.onpopstate = onNavigate;
 route();
 load();
