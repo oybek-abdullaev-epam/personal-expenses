@@ -2,6 +2,7 @@ import { readFile, open } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import { miniAppUrl } from "../backend/src/telegram-links.ts";
 
 const configPath = new URL("../.env.production.json", import.meta.url);
 export const snapshotPath = new URL(
@@ -9,26 +10,7 @@ export const snapshotPath = new URL(
   import.meta.url,
 );
 
-export function appUrl(value) {
-  if (typeof value !== "string" || !/^https:\/\/[^/?#@\s\\]+\/?$/i.test(value))
-    return null;
-  try {
-    const url = new URL(value);
-    if (
-      url.protocol !== "https:" ||
-      url.username ||
-      url.password ||
-      url.pathname !== "/" ||
-      value.includes("?") ||
-      value.includes("#") ||
-      /^(www\.)?(t\.me|telegram\.me)$/i.test(url.hostname)
-    )
-      return null;
-    return url.href;
-  } catch {
-    return null;
-  }
-}
+export const appUrl = miniAppUrl;
 
 function ownerId(value) {
   const id = String(value);

@@ -137,7 +137,7 @@ Every field is checked by `manualDetails()` in [`manual.ts`](../backend/src/manu
 
 | Field | Rule |
 |---|---|
-| `id` | A lowercase UUID chosen by the client. It is both the idempotency key and the new row's `id`. |
+| `id` | A UUID chosen by the client (uppercase is accepted and stored lowercase). It is both the idempotency key and the new row's `id`. |
 | `direction` | `expense` or `income`. |
 | `merchant` | 1–250 characters after trimming. |
 | `amount` | `^\d+(\.\d{1,2})?$`, greater than 0, and at most 2⁵³−1 minor units. |

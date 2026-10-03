@@ -13,6 +13,15 @@ assert(html.includes("Public · Tashkent"));
 assert(!html.includes("__PAGE_DOCUMENT__"));
 assert(!html.includes("__CLIENT_SCRIPT__"));
 assert(!html.includes("__TELEGRAM_SCRIPT__"));
+assert(!html.includes("__DARK_TOKENS__"));
+const darkBlocks = [
+  ...html.matchAll(
+    /(?:prefers-color-scheme: dark\) \{\s*:root:not\(\[data-telegram-theme="light"\]\)|:root\[data-telegram-theme="dark"\])\s*\{([^}]*)\}/g,
+  ),
+].map((match) => match[1].replace(/\s+/g, " ").trim());
+assert.equal(darkBlocks.length, 2, "Both dark palettes must be present");
+assert.equal(darkBlocks[0], darkBlocks[1], "Dark palettes must be identical");
+assert(darkBlocks[0].includes("--porcelain:"));
 assert(html.includes("https://telegram.org/js/telegram-web-app.js?63"));
 assert(html.includes("function createTelegramAdapter"));
 assert(!html.includes("oai-authenticated"));

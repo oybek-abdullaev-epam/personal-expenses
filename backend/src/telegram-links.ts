@@ -1,3 +1,9 @@
+// Transaction IDs are accepted in either case and lower-cased before use.
+export const UUID =
+  /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+export const isUuid = (value: unknown): value is string =>
+  typeof value === "string" && UUID.test(value);
+
 // Presentation configuration only; never derive an app URL from an API address.
 export function miniAppUrl(value: unknown): string | null {
   if (typeof value !== "string" || !/^https:\/\/[^/?#@\s\\]+\/?$/i.test(value))
@@ -27,11 +33,7 @@ export function trackerButton(value: unknown) {
 
 export function transactionButton(value: unknown, id: string) {
   const base = miniAppUrl(value);
-  if (
-    !base ||
-    !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
-  )
-    return null;
+  if (!base || !isUuid(id)) return null;
   const url = new URL(base);
   url.searchParams.set("transaction", id.toLowerCase());
   return { text: "View transaction", web_app: { url: url.href } };

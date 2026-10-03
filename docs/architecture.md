@@ -91,6 +91,7 @@ backend/              Cloudflare Worker (TypeScript) and D1 migrations
 website/              Public dashboard deployed to Vercel
   worker/index.js     Proxy and page server (the security boundary for the public site)
   worker/page.html    Markup and all CSS
+  worker/dark-tokens.css  The dark palette, injected into both dark blocks at build time
   worker/client.js    All browser JavaScript (no framework)
   api/index.js        Vercel adapter: imports the built dist/server/index.js
   scripts/            Build (inlines page and client into one module) and post-build validation

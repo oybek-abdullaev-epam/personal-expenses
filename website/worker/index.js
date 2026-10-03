@@ -1,22 +1,20 @@
 const page = "__PAGE_DOCUMENT__";
+const UUID =
+  "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}";
+const apiPath = new RegExp(
+  `^/api/(expenses(?:/${UUID})?|totals|insights|health)$`,
+);
+const recordPath = new RegExp(`^/api/expenses/${UUID}$`);
 const response = (data, status = 200) =>
   Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) {
-      if (
-        !/^\/api\/(expenses(?:\/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})?|totals|insights|health)$/.test(
-          url.pathname,
-        )
-      )
+      if (!apiPath.test(url.pathname))
         return response({ error: "Not found" }, 404);
       const writing = request.method === "PATCH" || request.method === "POST";
-      const recordPath =
-        /^\/api\/expenses\/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/.test(
-          url.pathname,
-        );
-      const allowed = recordPath
+      const allowed = recordPath.test(url.pathname)
         ? ["GET", "PATCH"]
         : url.pathname === "/api/expenses"
           ? ["GET", "POST"]

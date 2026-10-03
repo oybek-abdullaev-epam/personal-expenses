@@ -1,11 +1,12 @@
 import { readFile, mkdir, writeFile, rm } from "node:fs/promises";
 const root = new URL("../", import.meta.url);
-const [worker, html, client, telegram] = await Promise.all(
+const [worker, html, client, telegram, darkTokens] = await Promise.all(
   [
     "worker/index.js",
     "worker/page.html",
     "worker/client.js",
     "worker/telegram.js",
+    "worker/dark-tokens.css",
   ].map((p) => readFile(new URL(p, root), "utf8")),
 );
 await mkdir(new URL("dist/server/", root), { recursive: true });
@@ -20,6 +21,7 @@ await writeFile(
   worker.replace(/(["'])__PAGE_DOCUMENT__\1/, () =>
     JSON.stringify(
       html
+        .replaceAll("__DARK_TOKENS__", () => darkTokens.trim())
         .replace("__TELEGRAM_SCRIPT__", () => telegram)
         .replace("__CLIENT_SCRIPT__", () => client),
     ),
