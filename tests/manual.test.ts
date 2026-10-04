@@ -240,6 +240,7 @@ test("manual proxy forwards anonymous same-origin creates and rejects unsafe wri
   const headers = {
     Origin: "https://site.example",
     "Content-Type": "application/json",
+          "X-Tracker-Contract": "reimbursements-v1",
   };
   assert.equal((await send(headers)).status, 201);
   assert.equal((await send(headers)).status, 200);

@@ -1,4 +1,3 @@
-import { MutationError, reimbursementFields, updateExpense } from "./reimbursements";
 import {
   category,
   incomeCategory,
@@ -10,57 +9,19 @@ import {
   money,
   tashkentDay,
 } from "./domain";
+import { financialRead, projectExpenses } from "./reporting";
 import { manualDetails } from "./manual";
 import { isUuid } from "./telegram-links";
 import { getExpense, saveManual, sql } from "./store";
+import {
+  MutationError,
+  reimbursementFields,
+  updateExpense,
+} from "./reimbursements";
 export const json = (data: unknown, status = 200) =>
   Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
-function filters(url: URL) {
-  const p = url.searchParams,
-    parts = ["dismissed=0"],
-    values: (string | number)[] = [];
-  const q = p.get("q");
-  if (q) {
-    if (q.length > 200) throw Error("invalid_search");
-    parts.push(
-      "(merchant LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')",
-    );
-    const search = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
-    values.push(search, search);
-  }
-  const c = p.get("category");
-  if (c) {
-    if (!category(c) && !incomeCategory(c)) throw Error("invalid_category");
-    parts.push("COALESCE(income_category,category)=?");
-    values.push(c);
-  }
-  const direction = p.get("direction");
-  if (direction) {
-    if (!["expense", "income"].includes(direction))
-      throw Error("invalid_direction");
-    parts.push("direction=?");
-    values.push(direction);
-  }
-  if (p.get("needsDetails") === "true") parts.push(NEEDS_DETAILS);
-  for (const [key, op] of [
-    ["from", ">="],
-    ["to", "<"],
-  ] as const) {
-    const value = p.get(key);
-    if (!value) continue;
-    if (!/^20\d{2}-\d{2}-\d{2}$/.test(value)) throw Error("invalid_date");
-    const [y, m, d] = value.split("-");
-    const iso = localDateTime(`${d}.${m}.${y.slice(2)} 00:00`);
-    parts.push(
-      `COALESCE(occurred_at,strftime('%Y-%m-%dT%H:%M:%fZ',received_at/1000.0,'unixepoch')) ${op} ?`,
-    );
-    values.push(
-      key === "to" ? new Date(Date.parse(iso) + 86400000).toISOString() : iso,
-    );
-  }
-  if (p.get("from") && p.get("to") && p.get("from")! > p.get("to")!)
-    throw Error("invalid_range");
-  return { where: parts.join(" AND "), values };
+async function transactionJson(env: Env, expense: Expense | null, status = 200) {
+  return expense ? json((await projectExpenses(env, [expense]))[0], status) : json({ error: "Not found" }, 404);
 }
 export async function api(
   request: Request,
@@ -76,6 +37,10 @@ export async function api(
     return json({ error: "Unauthorized" }, 401);
   const url = new URL(request.url),
     path = url.pathname;
+  if (/^\/api\/(expenses(?:\/|$)|totals$|insights$)/.test(path) && request.headers.get("X-Tracker-Contract") !== "reimbursements-v1")
+    return json({ error: "Refresh the tracker to continue.", code: "refresh_required" }, 409);
+  const read = await financialRead(request, env, now);
+  if (read) return read;
   if (path === "/api/expenses" && request.method === "POST") {
     let body: Record<string, unknown>;
     try {
@@ -118,7 +83,7 @@ export async function api(
         },
         409,
       );
-    return json(result.expense, result.created ? 201 : 200);
+    return transactionJson(env, result.expense, result.created ? 201 : 200);
   }
   if (path === "/api/activate" && request.method === "POST") {
     await sql(
@@ -142,146 +107,8 @@ export async function api(
     ).first();
     return json({ sync: state, notifications: outbox });
   }
-  if (path === "/api/insights" && request.method === "GET") {
-    const month = url.searchParams.get("month") ?? tashkentDay(now).slice(0, 7);
-    if (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month))
-      return json({ error: "Invalid month" }, 400);
-    const [y, m] = month.split("-").map(Number);
-    const next =
-      m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
-    const start = (ym: string) =>
-      localDateTime(`01.${ym.slice(5)}.${ym.slice(2, 4)} 00:00`);
-    const at =
-      "COALESCE(occurred_at,strftime('%Y-%m-%dT%H:%M:%fZ',received_at/1000.0,'unixepoch'))";
-    type Sums = { minor: bigint; count: number };
-    const currencies: Record<
-      string,
-      {
-        expense: bigint;
-        income: bigint;
-        days: Record<string, Sums>;
-        categories: Record<string, Sums>;
-      }
-    > = {};
-    let last = "";
-    while (true) {
-      const rows = await sql(
-        env,
-        `SELECT id,amount_minor,currency,direction,category,${at} AS at FROM expenses WHERE dismissed=0 AND review_reason IS NULL AND ${at}>=? AND ${at}<? AND id>? ORDER BY id LIMIT 1000`,
-        start(month),
-        start(next),
-        last,
-      ).all<
-        Pick<
-          Expense,
-          "id" | "amount_minor" | "currency" | "direction" | "category"
-        > & {
-          at: string;
-        }
-      >();
-      for (const r of rows.results) {
-        const c = (currencies[r.currency!] ??= {
-          expense: 0n,
-          income: 0n,
-          days: {},
-          categories: {},
-        });
-        const amount = BigInt(r.amount_minor!);
-        c[r.direction] += amount;
-        if (r.direction !== "expense") continue;
-        // Days are Tashkent calendar days, not UTC.
-        for (const [bucket, key] of [
-          [c.days, tashkentDay(Date.parse(r.at))],
-          [c.categories, r.category ?? ""],
-        ] as const) {
-          const sum = (bucket[key] ??= { minor: 0n, count: 0 });
-          sum.minor += amount;
-          sum.count++;
-        }
-      }
-      if (rows.results.length < 1000) break;
-      last = rows.results.at(-1)!.id;
-    }
-    const list = (bucket: Record<string, Sums>, name: string) =>
-      Object.entries(bucket).map(([key, v]) => ({
-        [name]: key || null,
-        spending_minor: v.minor.toString(),
-        count: v.count,
-      }));
-    return json({
-      month,
-      currencies: Object.entries(currencies).map(([currency, c]) => ({
-        currency,
-        spending_minor: c.expense.toString(),
-        income_minor: c.income.toString(),
-        net_minor: (c.income - c.expense).toString(),
-        days: list(c.days, "date").sort((a, b) => (a.date! < b.date! ? -1 : 1)),
-        categories: list(c.categories, "category").sort((a, b) => {
-          const d = BigInt(b.spending_minor) - BigInt(a.spending_minor);
-          return d > 0n ? 1 : d < 0n ? -1 : 0;
-        }),
-      })),
-    });
-  }
-  if (
-    (path === "/api/expenses" || path === "/api/totals") &&
-    request.method === "GET"
-  ) {
-    let f;
-    try {
-      f = filters(url);
-    } catch {
-      return json({ error: "Invalid filters" }, 400);
-    }
-    if (path === "/api/totals") {
-      const totals: Record<string, { expense: bigint; income: bigint }> = {};
-      let last = "";
-      while (true) {
-        const rows = await sql(
-          env,
-          `SELECT id,amount_minor,currency,direction FROM expenses WHERE ${f.where} AND review_reason IS NULL AND id>? ORDER BY id LIMIT 1000`,
-          ...f.values,
-          last,
-        ).all<
-          Pick<Expense, "id" | "amount_minor" | "currency" | "direction">
-        >();
-        for (const r of rows.results) {
-          const total = (totals[r.currency!] ??= { expense: 0n, income: 0n });
-          total[r.direction] += BigInt(r.amount_minor!);
-        }
-        if (rows.results.length < 1000) break;
-        last = rows.results.at(-1)!.id;
-      }
-      return json(
-        Object.entries(totals).map(([currency, value]) => ({
-          currency,
-          amount_minor: value.expense.toString(),
-          income_minor: value.income.toString(),
-          net_minor: (value.income - value.expense).toString(),
-        })),
-      );
-    }
-    const raw = url.searchParams.get("offset") ?? "0";
-    if (!/^\d{1,7}$/.test(raw)) return json({ error: "Invalid offset" }, 400);
-    const rows = await sql(
-      env,
-      `SELECT * FROM expenses WHERE ${f.where} ORDER BY COALESCE(occurred_at,strftime('%Y-%m-%dT%H:%M:%fZ',received_at/1000.0,'unixepoch')) DESC,id DESC LIMIT 51 OFFSET ?`,
-      ...f.values,
-      Number(raw),
-    ).all<Expense>();
-    return json({
-      expenses: rows.results.slice(0, 50),
-      nextOffset: rows.results.length > 50 ? Number(raw) + 50 : null,
-    });
-  }
   const idPart = /^\/api\/expenses\/([^/]+)$/.exec(path)?.[1];
   const m = isUuid(idPart) ? [path, idPart.toLowerCase()] : null;
-  if (m && request.method === "GET") {
-    const existing = await getExpense(env, m[1]);
-    return existing && !existing.dismissed
-      ? json(existing)
-      : json({ error: "Not found" }, 404);
-  }
   if (m && request.method === "PATCH") {
     const existing = await getExpense(env, m[1]);
     if (!existing) return json({ error: "Not found" }, 404);
@@ -310,8 +137,8 @@ export async function api(
       if (!("payer_name" in details))
         entries.push(["payer_name", ""], ["reimbursement_expense_id", null]);
       try {
-        return json(
-          await updateExpense(
+        return transactionJson(
+          env, await updateExpense(
             env,
             existing,
             entries,
@@ -430,8 +257,8 @@ export async function api(
       ];
     });
     try {
-      return json(
-        await updateExpense(
+      return transactionJson(
+        env, await updateExpense(
           env,
           existing,
           entries,

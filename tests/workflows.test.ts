@@ -636,6 +636,7 @@ test("income stays separate from spending with exact net totals and filters", as
       amount_minor: "3050000",
       income_minor: "1000000",
       net_minor: "-2050000",
+      pending_reimbursement_minor: "0",
     },
   ]);
   for (const income_category of ["Salary", "Reimbursement", "Other income"]) {
@@ -818,7 +819,9 @@ test("review resolution records income direction without duplicating the source"
     1,
   );
   const totals: any = await (await api(request("/api/totals"), env)).json();
-  assert.equal(totals[0].net_minor, "29");
+  assert.equal(totals[0].net_minor, "0");
+  assert.equal(totals[0].income_minor, "0");
+  assert.equal(totals[0].pending_reimbursement_minor, "29");
 });
 
 test("description cleanup retries independently and ignores invalid replies", async (t) => {
@@ -945,6 +948,7 @@ test("month insights bucket spending by Tashkent day and category, exactly", asy
       spending_minor: "9007199254741997",
       income_minor: "100000",
       net_minor: "-9007199254641997",
+      pending_reimbursement_minor: "0",
       days: [
         { date: "2026-09-01", spending_minor: "1000", count: 1 },
         { date: "2026-09-24", spending_minor: "9007199254740997", count: 2 },

@@ -97,12 +97,16 @@ test("record lookup is one authenticated primary-key read, independent of pages/
     assert.deepEqual(await response.json(), {
       ...target,
       occurred_at: "2026-08-01T00:00:00.000Z",
+      original_minor: String(target.amount_minor), reimbursed_minor: "0",
+      personal_spending_minor: String(target.amount_minor), pending_reimbursement_minor: "0",
+      parent_versions: {}, reimbursement_expense: null,
     });
   }
-  assert.deepEqual(queries, [
-    "SELECT * FROM expenses WHERE id=?",
-    "SELECT * FROM expenses WHERE id=?",
-  ]);
+  assert.equal(queries.length, 2);
+  for (const query of queries) {
+    assert.match(query, /WHERE e.id=\? AND e.dismissed=0 LIMIT 1/);
+    assert.doesNotMatch(query, /OFFSET/);
+  }
   assert.equal(snapshot(), before);
   for (const authorized of [false, true]) {
     const missing = await api(

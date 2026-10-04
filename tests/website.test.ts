@@ -16,6 +16,7 @@ function req(
     headers: {
       Origin: origin,
       "Content-Type": "application/json",
+          "X-Tracker-Contract": "reimbursements-v1",
     },
     body: method === "PATCH" ? "{}" : undefined,
   });
@@ -176,7 +177,7 @@ test("anonymous edits reach persistence, preserve conflicts, and resolve reviews
     BACKEND_TOKEN: backend.BACKEND_TOKEN,
   };
   const list = await (
-    await site.fetch(new Request("https://site.example/api/expenses"), config)
+    await site.fetch(new Request("https://site.example/api/expenses", {headers: {"X-Tracker-Contract": "reimbursements-v1"}}), config)
   ).json();
   const expense = list.expenses.find(
     (e: any) => e.source_message_id === "message-1",
@@ -188,6 +189,7 @@ test("anonymous edits reach persistence, preserve conflicts, and resolve reviews
         headers: {
           Origin: "https://site.example",
           "Content-Type": "application/json",
+          "X-Tracker-Contract": "reimbursements-v1",
         },
         body: JSON.stringify(body),
       }),
@@ -250,7 +252,7 @@ test("anonymous edits reach persistence, preserve conflicts, and resolve reviews
     200,
   );
   assert.equal(
-    (await site.fetch(new Request("https://site.example/api/totals"), config))
+    (await site.fetch(new Request("https://site.example/api/totals", { headers: {"X-Tracker-Contract": "reimbursements-v1"}}), config))
       .status,
     200,
   );
@@ -260,7 +262,7 @@ test("anonymous edits reach persistence, preserve conflicts, and resolve reviews
     200,
   );
   const insights = await site.fetch(
-    new Request("https://site.example/api/insights?month=2026-09"),
+    new Request("https://site.example/api/insights?month=2026-09", {headers: {"X-Tracker-Contract": "reimbursements-v1"}}),
     config,
   );
   assert.equal(insights.status, 200);

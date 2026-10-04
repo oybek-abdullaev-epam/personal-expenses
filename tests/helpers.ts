@@ -139,6 +139,7 @@ export function request(
       ? {
           Authorization: "Bearer test-backend-token",
           "Content-Type": "application/json",
+          "X-Tracker-Contract": "reimbursements-v1",
         }
       : {},
     body: body === undefined ? undefined : JSON.stringify(body),

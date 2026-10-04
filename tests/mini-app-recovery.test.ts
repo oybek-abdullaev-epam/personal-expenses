@@ -136,7 +136,7 @@ test("presentation rollback preserves populated state and browser recovery durin
     `/api/expenses/${a}`,
   ]) {
     const response = await site.fetch(
-      new Request(`https://expenses.example${path}`),
+      new Request(`https://expenses.example${path}`, {headers: {"X-Tracker-Contract": "reimbursements-v1"}}),
       proxyEnv,
     );
     assert.equal(response.status, 200, path);

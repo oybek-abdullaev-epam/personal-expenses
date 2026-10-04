@@ -1,6 +1,6 @@
 # ER-03: Candidate lookup and consistent personal-spending reports
 
-- **Status:** Backlog
+- **Status:** Done
 - **Proposal:** [Expense reimbursements](../PLAN.md)
 - **Depends on:** [ER-02](ER-02-persistence.md)
 - **Risks:** [R01](../RISKS.md#r01), [R05](../RISKS.md#r05), [R06](../RISKS.md#r06)
@@ -33,14 +33,14 @@ Transaction list/detail, candidate lookup, totals and insights; shared financial
 
 ## Acceptance checks
 
-- [ ] The proposal's dinner sequence yields the exact expected spending, income, and pending values after each state transition.
-- [ ] An October repayment reduces September's parent expense/category/day totals even when October is outside the query range; October does not count it as income.
-- [ ] All, Spending, Income, Reimbursement, Needs details, date, category, search, and pagination combinations follow the contract without missing or double-counting relationships.
-- [ ] Fully reimbursed expenses remain readable at zero and count once; aggregate sums remain exact for large amounts and separate currencies.
-- [ ] Old pending reimbursements appear in Needs details and pending totals without guessed names or parents.
-- [ ] Candidate lookup finds eligible older records outside the loaded page, excludes invalid records, and opening/read requests have no write or notification effects.
-- [ ] Access/proxy rejection tests and the relevant API/reporting tests pass, including applicable ownership checks if the access model changed before scheduling.
+- [x] The proposal's dinner sequence yields the exact expected spending, income, and pending values after each state transition.
+- [x] An October repayment reduces September's parent expense/category/day totals even when October is outside the query range; October does not count it as income.
+- [x] All, Spending, Income, Reimbursement, Needs details, date, category, search, and pagination combinations follow the contract without missing or double-counting relationships.
+- [x] Fully reimbursed expenses remain readable at zero and count once; aggregate sums remain exact for large amounts and separate currencies.
+- [x] Old pending reimbursements appear in Needs details and pending totals without guessed names or parents.
+- [x] Candidate lookup finds eligible older records outside the loaded page, excludes invalid records, and opening/read requests have no write or notification effects.
+- [x] Access/proxy rejection tests and the relevant API/reporting tests pass, including applicable ownership checks if the access model changed before scheduling.
 
 ## Completion evidence
 
-Not started. Record response examples, expected/actual synthetic totals, commands run, results, and limitations.
+[ER-03 evidence](../../../docs/verification/expense-reimbursements/ER-03.md). Independent review finding fixed and regression-tested. Commit/push recorded in ORCHESTRATION.md.

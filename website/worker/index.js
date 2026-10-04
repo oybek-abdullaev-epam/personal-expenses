@@ -2,7 +2,7 @@ const page = "__PAGE_DOCUMENT__";
 const UUID =
   "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}";
 const apiPath = new RegExp(
-  `^/api/(expenses(?:/${UUID})?|totals|insights|health)$`,
+  `^/api/(expenses(?:/${UUID}(?:/(?:reimbursement-candidates|reimbursements))?)?|totals|insights|health)$`,
 );
 const recordPath = new RegExp(`^/api/expenses/${UUID}$`);
 const response = (data, status = 200) =>
@@ -52,6 +52,12 @@ export default {
             headers: {
               Authorization: `Bearer ${env.BACKEND_TOKEN}`,
               "Content-Type": "application/json",
+              ...(request.headers.has("X-Tracker-Contract")
+                ? {
+                    "X-Tracker-Contract":
+                      request.headers.get("X-Tracker-Contract"),
+                  }
+                : {}),
             },
             redirect: "manual",
             signal: AbortSignal.timeout(15000),

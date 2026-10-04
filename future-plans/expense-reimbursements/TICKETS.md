@@ -13,7 +13,7 @@ The owner authorized ER-01–ER-06 implementation on 3 October 2026. ER-07 produ
 | --- | --- | --- | --- |
 | [ER-01](tickets/ER-01-contracts.md) | Scope promotion and implementation contracts | Done | — |
 | [ER-02](tickets/ER-02-persistence.md) | Reimbursement persistence and atomic mutations | Done | [ER-01](tickets/ER-01-contracts.md) |
-| [ER-03](tickets/ER-03-reporting.md) | Candidate lookup and consistent personal-spending reports | Backlog | [ER-02](tickets/ER-02-persistence.md) |
+| [ER-03](tickets/ER-03-reporting.md) | Candidate lookup and consistent personal-spending reports | Done | [ER-02](tickets/ER-02-persistence.md) |
 | [ER-04](tickets/ER-04-interface.md) | Shared picker, payer entry, and expense details | Backlog | [ER-03](tickets/ER-03-reporting.md) |
 | [ER-05](tickets/ER-05-telegram.md) | Telegram linking, completion, and daily summaries | Backlog | [ER-04](tickets/ER-04-interface.md) |
 | [ER-06](tickets/ER-06-validation.md) | Integrated validation and recovery rehearsal | Backlog | [ER-05](tickets/ER-05-telegram.md) |

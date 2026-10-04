@@ -14,6 +14,8 @@ This page lists every HTTP endpoint of the Cloudflare Worker, with its request a
 
 Every JSON response has `Cache-Control: no-store`.
 
+FP-003 is implemented on the feature branch and is not deployed. Financial routes (`expenses`, `totals`, `insights`) additionally require `X-Tracker-Contract: reimbursements-v1` after authentication. Missing/old versions return 409 `refresh_required` with a reload message. Health and administration keep their existing contract. The browser supplies this non-secret compatibility header; the proxy only forwards it.
+
 ## Authentication
 
 | Endpoint group                 | Requirement                                                                                                                                                                                     |
@@ -26,7 +28,7 @@ The public website never exposes the token. Its proxy adds the header on the ser
 
 ## `GET /api/expenses`: list transactions
 
-Returns the newest transactions first, ordered by `occurred_at` (or `received_at` for review items), then by `id`. Dismissed rows are never returned.
+Returns the newest transactions first, ordered by `occurred_at` (or `received_at` for review items), then by `id`. Dismissed rows are never returned. Default All hides linked reimbursements and shows pending ones. Spending shows original expenses with adjusted costs; Income excludes all classified reimbursements. `category=Reimbursement` overrides direction, exposing linked and pending repayments. Dates/search apply to the displayed record, while each parent deduction includes its complete relationship across repayment dates.
 
 **Query parameters** (all optional, parsed by `filters()`):
 
@@ -35,7 +37,7 @@ Returns the newest transactions first, ordered by `occurred_at` (or `received_at
 | `q`            | ≤ 200 characters                          | Case-insensitive `LIKE` search on merchant or description. `%` and `_` are escaped.             |
 | `category`     | An expense category or an income category | Matches `COALESCE(income_category, category)`.                                                  |
 | `direction`    | `expense` or `income`                     | Keeps only rows with that direction.                                                            |
-| `needsDetails` | `true`                                    | Uses the `NEEDS_DETAILS` condition: a review item, an empty description, or a missing category. |
+| `needsDetails` | `true`                                    | Uses the `NEEDS_DETAILS` condition: a review item, ordinary missing category/description, or reimbursement missing payer/link. |
 | `from`         | `YYYY-MM-DD` (Tashkent day)               | Includes rows from that day's local 00:00 onward.                                               |
 | `to`           | `YYYY-MM-DD` (Tashkent day)               | Includes rows up to the end of that day. `from` must not be later than `to`.                    |
 | `offset`       | Integer with 1–7 digits                   | Pagination offset.                                                                              |
@@ -89,12 +91,13 @@ It uses the same filters as `/api/expenses` (but ignores `offset`), leaves out r
     "currency": "UZS",
     "amount_minor": "3050000",
     "income_minor": "0",
-    "net_minor": "-3050000"
+    "net_minor": "-3050000",
+    "pending_reimbursement_minor": "0"
   }
 ]
 ```
 
-`amount_minor` is **spending**. The field name is historical. All three values are decimal strings, so exact sums survive JSON (see [data-model.md](data-model.md#money)).
+`amount_minor` is **adjusted personal spending**. The field name is historical. All money totals are decimal strings, so exact sums survive JSON (see [data-model.md](data-model.md#money)).
 
 ## `GET /api/insights?month=YYYY-MM`: data for the Month view
 
@@ -253,3 +256,13 @@ The `Env` type is defined in [`domain.ts`](../backend/src/domain.ts), and the no
 | `TELEGRAM_OWNER_ID`                        | Secret             | The only chat and user allowed, as a numeric string.                                                                                                      | `node scripts/integrations.mjs owner`                |
 
 All seven secrets are kept locally in the git-ignored `.env.production.json`. They are uploaded with `node scripts/deploy-secrets.mjs` (see [deployment.md](deployment.md#secrets)). For local `npm run dev`, put them in `backend/.dev.vars` (copy [`backend/.dev.vars.example`](../backend/.dev.vars.example)).
+
+## Reimbursement read projection and relationship routes
+
+`reporting.ts` owns financial reads and shared exact money projections used by notification summaries. Raw `amount_minor` remains the bank/manual payment. Transaction responses add string `original_minor`, `reimbursed_minor`, `personal_spending_minor`, and `pending_reimbursement_minor`, plus `payer_name`, `reimbursement_expense_id`, `parent_versions`, and nullable `reimbursement_expense` parent summary. Mutation success returns the same projection. Reviews contribute zero; fully reimbursed parents remain visible/count once. Aggregate totals and insights add pending amounts per currency and interpret `net_minor` as non-reimbursement income minus personal spending. Month days/categories and tracked-day averages use parent dates, retaining activation rules.
+
+- `GET /api/expenses/:id/reimbursement-candidates?q=&cursor=` requires a resolved, undismissed Reimbursement. It returns `{expenses,nextCursor}` with at most50 eligible parents, newest first (occurred_at/id), independent of ledger filters. Search is literal escaped merchant/description LIKE, max200 characters. Each row includes `available_minor`, context and current version; the current allocation is credited back when considering its existing parent. Writes revalidate capacity and versions.
+- `GET /api/expenses/:id/reimbursements?cursor=` returns the same bounded envelope for an expense's linked repayments, with payer, note, date and projection. Both routes strictly validate UUIDs/canonical cursors; invalid input is400, unavailable source404. Their proxy methods are GET-only.
+- Cursor timestamps accept canonical UTC values including1999 spillover from the earliest supported Tashkent date, 1 January2000. Search `%`, `_`, and backslash are literals. Record detail lookup remains bounded and read-only outside all list filters.
+
+Names and notes are plain text. No parser changes, inferred names, contacts, split allocations, currency conversion or public administrative routes are introduced.

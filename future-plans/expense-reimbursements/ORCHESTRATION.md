@@ -5,8 +5,8 @@ Authorized 3 October 2026: ER-01–06 implementation, synthetic/local verificati
 | Milestone | Dependencies | Owner | State | Verification / artifact | Commit / push |
 |---|---|---|---|---|---|
 | ER-01 | — | Orchestrator | Done | CONTRACTS.md; docs/verification/expense-reimbursements/ER-01.md | 097aede; remote head confirmed |
-| ER-02 | ER-01 | Persistence agent | Done | docs/verification/expense-reimbursements/ER-02.md | ER-02 commit; push recorded next milestone |
-| ER-03 | ER-02 | Reporting agent | Pending | Report/candidate tests | Pending |
+| ER-02 | ER-01 | Persistence agent | Done | docs/verification/expense-reimbursements/ER-02.md | 7ffac8d; remote head confirmed |
+| ER-03 | ER-02 | Reporting agent | Done | docs/verification/expense-reimbursements/ER-03.md | ER-03 commit; push recorded next milestone |
 | ER-04 | ER-03 | UI agent | Pending (contract-first UI subtask Active) | Client tests/screenshots | Pending |
 | ER-05 | ER-04 | Telegram agent | Pending | Lifecycle/summary tests | Pending |
 | ER-06 | ER-05 | Orchestrator + independent reviewer | Pending | Integrated checks/recovery | Pending |
