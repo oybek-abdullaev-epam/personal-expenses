@@ -7,9 +7,12 @@ import {
   IntegrationError,
   formatMoney,
   tashkentDay,
+  complete,
+  isReimbursement,
 } from "./domain";
-import { getExpense, sql } from "./store";
+import { getExpense, sql, lock } from "./store";
 import { trackerButton, transactionButton } from "./telegram-links";
+import { projectExpenses } from "./reporting";
 interface Outbox {
   id: string;
   expense_id: string | null;
@@ -85,13 +88,13 @@ async function dailySummary(env: Env, now: number) {
   while (true) {
     const rows = await sql(
       env,
-      `SELECT id,amount_minor,currency FROM expenses WHERE ${DAILY_SPENDING} AND id>? ORDER BY id LIMIT 1000`,
+      `SELECT * FROM expenses WHERE ${DAILY_SPENDING} AND id>? ORDER BY id LIMIT 1000`,
       ...dailyBounds(now),
       last,
-    ).all<Pick<Expense, "id" | "amount_minor" | "currency">>();
-    for (const row of rows.results) {
+    ).all<Expense>();
+    for (const row of await projectExpenses(env, rows.results)) {
       const total = totals.get(row.currency!) ?? { amount: 0n, count: 0 };
-      total.amount += BigInt(row.amount_minor!);
+      total.amount += BigInt(row.personal_spending_minor);
       total.count++;
       totals.set(row.currency!, total);
     }
@@ -122,15 +125,6 @@ async function dailySummary(env: Env, now: number) {
 function summary(e: Expense) {
   return `${e.direction === "income" ? "Income received" : "Expense"} · ${e.merchant}\n${formatMoney(e.amount_minor!, e.currency!)} · card ••${e.card_suffix}\n${new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tashkent", dateStyle: "medium", timeStyle: "short" }).format(new Date(e.occurred_at!))} (Tashkent)`;
 }
-function complete(e: Expense) {
-  return (
-    !e.dismissed &&
-    !e.review_reason &&
-    !!e.description.trim() &&
-    !!(e.direction === "income" ? e.income_category : e.category)
-  );
-}
-
 // Retain associations even after deletion, so retries and stale updates are safe.
 async function queueCleanup(env: Env, now: number) {
   await sql(
@@ -178,8 +172,9 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
       current,
     ).run();
     if (!claimed.meta.changes) continue;
+    let receiptLease: string | null = null;
     try {
-      const e = row.expense_id ? await getExpense(env, row.expense_id) : null;
+      let e = row.expense_id ? await getExpense(env, row.expense_id) : null;
       if (row.kind === "delete") {
         const messageId = JSON.parse(row.payload).message_id;
         // Re-check completion: website edits may have reopened this transaction.
@@ -217,11 +212,90 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
         markup: object | undefined;
       const isReceipt =
         row.kind === "receipt" || row.kind === "description_saved";
+      // Legacy and current receipt intents share one transaction-level send lease.
+      // Durable message associations, not outbox sent_at, prove actual delivery.
+      if (isReceipt && e) {
+        receiptLease = await lock(env, `receipt:${e.id}`, current, 60000);
+        if (!receiptLease) {
+          await sql(
+            env,
+            "UPDATE outbox SET available_at=?,lease_until=0 WHERE id=? AND lease_token=?",
+            current + 1000,
+            row.id,
+            lease,
+          ).run();
+          continue;
+        }
+        e = await getExpense(env, e.id);
+      }
+      // Coalescing legacy receipt jobs must still retain the owner's reply for cleanup.
+      if (row.kind === "description_saved" && e?.source === "email") {
+        const replyId = JSON.parse(row.payload).message_id;
+        if (Number.isSafeInteger(replyId) && replyId > 0)
+          await sql(
+            env,
+            "INSERT OR IGNORE INTO telegram_messages (message_id,expense_id,kind,created_at) VALUES (?,?,'description',?)",
+            replyId,
+            e.id,
+            now,
+          ).run();
+      }
+      const alreadyDelivered =
+        isReceipt &&
+        e &&
+        (await sql(
+          env,
+          "SELECT 1 FROM telegram_messages WHERE expense_id=? AND kind='receipt' LIMIT 1",
+          e.id,
+        ).first());
+      if (
+        isReceipt &&
+        !alreadyDelivered &&
+        e?.source === "email" &&
+        !e.dismissed &&
+        !complete(e)
+      ) {
+        // Completion may race this read. Keep the intent live, so a stale
+        // incomplete snapshot cannot consume a concurrently completed receipt.
+        await sql(
+          env,
+          "UPDATE outbox SET available_at=?,lease_until=0 WHERE id=? AND lease_token=?",
+          current + 300000,
+          row.id,
+          lease,
+        ).run();
+        continue;
+      }
+
       const appButton = trackerButton(env.TELEGRAM_APP_URL);
       const recordButton = e
         ? transactionButton(env.TELEGRAM_APP_URL, e.id)
         : null;
-      if (row.kind === "expense" && e) {
+      if (e?.source === "manual" || alreadyDelivered) {
+        // Manual entries never get per-transaction messages; corrections never replace a receipt.
+      } else if (
+        (row.kind === "expense" || row.kind === "prompt") &&
+        e &&
+        isReimbursement(e) &&
+        !e.review_reason &&
+        !e.dismissed
+      ) {
+        if (!complete(e)) {
+          text = `${summary(e)}\n\nAdd who repaid you and link this reimbursement to an expense.\nOpen dashboard: ${env.SITE_URL}?transaction=${e.id}`;
+          markup = {
+            inline_keyboard: [
+              [
+                recordButton
+                  ? { ...recordButton, text: "Link to expense" }
+                  : {
+                      text: "Link to expense",
+                      url: `${env.SITE_URL}?transaction=${e.id}`,
+                    },
+              ],
+            ],
+          };
+        }
+      } else if (row.kind === "expense" && e && !e.dismissed) {
         text = `${summary(e)}\n\nChoose a category.`;
         const choices =
           e.direction === "income" ? INCOME_CATEGORIES : CATEGORIES;
@@ -243,7 +317,13 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
           input_field_placeholder: "What was this transaction for?",
         };
       } else if (isReceipt && e && complete(e)) {
-        text = `✓ Saved\n${summary(e)}\n\n${e.direction === "income" ? e.income_category : e.category} · ${e.description}\n\nOpen dashboard: ${env.SITE_URL}`;
+        const parent = e.reimbursement_expense_id
+          ? await getExpense(env, e.reimbursement_expense_id)
+          : null;
+        const detail = isReimbursement(e)
+          ? `Reimbursement from ${e.payer_name}\nFor ${parent?.merchant ?? "expense"} · ${parent?.occurred_at ? new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tashkent", dateStyle: "medium" }).format(new Date(parent.occurred_at)) : ""}${e.description ? `\n${e.description}` : ""}`
+          : `${e.direction === "income" ? e.income_category : e.category} · ${e.description}`;
+        text = `✓ Saved\n${summary(e)}\n\n${detail}\n\nOpen dashboard: ${env.SITE_URL}`;
         // A message accepts one markup type. Keep ForceReply on its prompt;
         // the standalone receipt uses an inline launch button when configured.
         markup = recordButton
@@ -287,19 +367,6 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
               now,
             ),
           );
-        if (e && row.kind === "description_saved") {
-          const replyId = JSON.parse(row.payload).message_id;
-          if (Number.isSafeInteger(replyId))
-            statements.push(
-              sql(
-                env,
-                "INSERT OR IGNORE INTO telegram_messages (message_id,expense_id,kind,created_at) VALUES (?,?,'description',?)",
-                replyId,
-                e.id,
-                now,
-              ),
-            );
-        }
         await env.DB.batch(statements);
       } else
         await sql(
@@ -342,6 +409,14 @@ async function drain(env: Env, now: number, cleanupOnly = false) {
         row.id,
         lease,
       ).run();
+    } finally {
+      if (receiptLease && row.expense_id)
+        await sql(
+          env,
+          "DELETE FROM locks WHERE name=? AND token=?",
+          `receipt:${row.expense_id}`,
+          receiptLease,
+        ).run();
     }
   }
 }
@@ -393,37 +468,47 @@ export async function handleUpdate(env: Env, u: Update, now = Date.now()) {
       : null;
     const choices =
       item?.direction === "income" ? INCOME_CATEGORIES : CATEGORIES;
-    const valid = !!(
+    let valid = !!(
       m &&
       association?.expense_id === m[2] &&
       item &&
       !item.review_reason &&
       !item.dismissed &&
+      !item.reimbursement_expense_id &&
       m[1] === (item.direction === "income" ? "inc" : "cat") &&
       choices[Number(m[3])]
     );
     if (valid && m) {
-      await env.DB.batch([
+      const result = await env.DB.batch([
         sql(
           env,
-          `UPDATE expenses SET ${item!.direction === "income" ? "income_category" : "category"}=?,version=version+1 WHERE id=? AND review_reason IS NULL AND dismissed=0 AND ${guard}`,
+          `UPDATE expenses SET ${item!.direction === "income" ? "income_category" : "category"}=?,version=version+1 WHERE id=? AND version=? AND reimbursement_expense_id IS NULL AND review_reason IS NULL AND dismissed=0 AND ${guard}`,
           choices[Number(m[3])],
           m[2],
+          item!.version,
           u.update_id,
         ),
         sql(
           env,
-          `INSERT OR IGNORE INTO outbox (id,expense_id,kind,available_at) SELECT ?,?,?,? WHERE ${guard}`,
-          item!.description.trim()
-            ? `receipt:${m[2]}`
-            : `prompt:${u.update_id}`,
-          m[2],
-          item!.description.trim() ? "receipt" : "prompt",
-          now,
+          "INSERT OR IGNORE INTO telegram_updates (id,processed_at) SELECT ?,? WHERE changes()>0",
           u.update_id,
+          now,
         ),
-        mark,
+        sql(
+          env,
+          `INSERT INTO outbox (id,expense_id,kind,available_at)
+           SELECT CASE WHEN NOT ${NEEDS_DETAILS} THEN 'receipt:'||id ELSE ? END,id,
+           CASE WHEN NOT ${NEEDS_DETAILS} THEN 'receipt' ELSE 'prompt' END,? FROM expenses
+           WHERE id=? AND changes()>0
+           AND NOT EXISTS (SELECT 1 FROM telegram_messages tm WHERE tm.expense_id=expenses.id AND tm.kind='receipt')
+           ON CONFLICT(id) DO UPDATE SET sent_at=NULL,available_at=excluded.available_at,error=NULL
+           WHERE outbox.sent_at IS NOT NULL`,
+          `prompt:${u.update_id}`,
+          now,
+          m[2],
+        ),
       ]);
+      valid = Boolean(result[0].meta.changes);
     } else await mark.run();
     // Callback acknowledgement is best-effort and must not roll back a saved selection.
     try {
@@ -440,7 +525,7 @@ export async function handleUpdate(env: Env, u: Update, now = Date.now()) {
     await env.DB.batch([
       sql(
         env,
-        `UPDATE expenses SET description=?,version=version+1 WHERE id=(SELECT expense_id FROM telegram_messages WHERE message_id=? AND kind='prompt' AND cleanup_status IS NULL AND NOT EXISTS (SELECT 1 FROM telegram_messages r WHERE r.expense_id=telegram_messages.expense_id AND r.kind='receipt')) AND review_reason IS NULL AND dismissed=0 AND ${guard}`,
+        `UPDATE expenses SET description=?,version=version+1 WHERE id=(SELECT expense_id FROM telegram_messages WHERE message_id=? AND kind='prompt' AND cleanup_status IS NULL AND NOT EXISTS (SELECT 1 FROM telegram_messages r WHERE r.expense_id=telegram_messages.expense_id AND r.kind='receipt')) AND review_reason IS NULL AND dismissed=0 AND NOT (direction='income' AND COALESCE(income_category,'')='Reimbursement') AND ${guard}`,
         u.message.text.trim(),
         u.message.reply_to_message.message_id,
         u.update_id,
@@ -451,7 +536,7 @@ export async function handleUpdate(env: Env, u: Update, now = Date.now()) {
         `INSERT OR IGNORE INTO telegram_messages (message_id,expense_id,kind,created_at)
          SELECT ?,e.id,'description',? FROM expenses e
          WHERE e.id=(SELECT expense_id FROM telegram_messages WHERE message_id=? AND kind='prompt' AND cleanup_status IS NULL AND NOT EXISTS (SELECT 1 FROM telegram_messages r WHERE r.expense_id=telegram_messages.expense_id AND r.kind='receipt'))
-         AND e.review_reason IS NULL AND e.dismissed=0 AND ${guard}`,
+         AND e.review_reason IS NULL AND e.dismissed=0 AND NOT (e.direction='income' AND COALESCE(e.income_category,'')='Reimbursement') AND ${guard}`,
         u.message.message_id,
         now,
         u.message.reply_to_message.message_id,
@@ -463,7 +548,7 @@ export async function handleUpdate(env: Env, u: Update, now = Date.now()) {
         `INSERT OR IGNORE INTO outbox (id,expense_id,kind,payload,available_at)
          SELECT 'receipt:'||id,id,'receipt',?,? FROM expenses
          WHERE id=(SELECT expense_id FROM telegram_messages WHERE message_id=? AND kind='prompt' AND cleanup_status IS NULL AND NOT EXISTS (SELECT 1 FROM telegram_messages r WHERE r.expense_id=telegram_messages.expense_id AND r.kind='receipt'))
-         AND dismissed=0 AND NOT ${NEEDS_DETAILS} AND ${guard}`,
+         AND dismissed=0 AND NOT (direction='income' AND COALESCE(income_category,'')='Reimbursement') AND NOT ${NEEDS_DETAILS} AND ${guard}`,
         JSON.stringify({ message_id: u.message.message_id }),
         now,
         u.message.reply_to_message.message_id,

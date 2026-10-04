@@ -1,6 +1,6 @@
 # ER-05: Telegram linking, completion, and daily summaries
 
-- **Status:** Backlog
+- **Status:** Verified locally — commit/push recorded in orchestration ledger
 - **Proposal:** [Expense reimbursements](../PLAN.md)
 - **Depends on:** [ER-04](ER-04-interface.md)
 - **Risks:** [R01](../RISKS.md#r01), [R03](../RISKS.md#r03)
@@ -33,14 +33,14 @@ Category callback handling, pending prompt/receipt rendering, dashboard completi
 
 ## Acceptance checks
 
-- [ ] Reimbursement classification produces a correct transaction-specific link rather than a mandatory description reply; other categories retain their existing flow.
-- [ ] Link/name completion through the browser or Mini App sends at most one deterministic completion receipt, with correct payer and expense context; delivery timeouts retain the existing documented ambiguity.
-- [ ] Manual completion and corrections do not queue receipts; old delivered receipts are not recreated; migration alone produces no messages.
-- [ ] Old description replies and category callbacks cannot bypass name/link requirements, corrupt relationships, or target another record.
-- [ ] Duplicate Gmail imports/Telegram updates, reversed replies, receipt/cleanup retries, and interleaved dashboard/chat edits preserve source associations and deduplicated effects.
-- [ ] Same-day and cross-month repayments, zero-cost expenses, pending reimbursements, summary retries, and date expiry produce exact expected results without rewriting sent summaries.
-- [ ] Notification and regression tests pass using mocked transport; any separately authorized live evidence is clearly distinguished from mocks.
+- [x] Reimbursement classification produces a correct transaction-specific link rather than a mandatory description reply; other categories retain their existing flow.
+- [x] Link/name completion through the browser or Mini App sends at most one deterministic completion receipt, with correct payer and expense context; delivery timeouts retain the existing documented ambiguity.
+- [x] Manual completion and corrections do not queue receipts; old delivered receipts are not recreated; migration alone produces no messages.
+- [x] Old description replies and category callbacks cannot bypass name/link requirements, corrupt relationships, or target another record.
+- [x] Duplicate Gmail imports/Telegram updates, reversed replies, receipt/cleanup retries, and interleaved dashboard/chat edits preserve source associations and deduplicated effects.
+- [x] Same-day and cross-month repayments, zero-cost expenses, pending reimbursements, summary retries, and date expiry produce exact expected results without rewriting sent summaries.
+- [x] Notification and regression tests pass using mocked transport; any separately authorized live evidence is clearly distinguished from mocks.
 
 ## Completion evidence
 
-Not started. Record synthetic message payloads, association/retry assertions, commands/results, and any unverified live behavior without including real personal data.
+[Mocked transport and review evidence](../../../docs/verification/expense-reimbursements/ER-05.md). Live Telegram acceptance is an ER-04/ER-06 gate and is not claimed by these tests.

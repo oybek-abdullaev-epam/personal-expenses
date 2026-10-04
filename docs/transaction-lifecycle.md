@@ -194,3 +194,13 @@ A transaction **needs details** (the `NEEDS_DETAILS` SQL in [`domain.ts`](../bac
 4. Manual rows have `source='manual'` and no Gmail ID. They never trigger per-transaction Telegram messages and are complete as soon as they are created; their spending contributes to the daily summary.
 
 Manual rows count in totals and insights like any other row. Rows dated before activation are shown with an "incomplete history" note and are left out of the Month view's daily average. Manual rows are never matched or merged with a later email for the same purchase.
+
+## Reimbursement completion (FP-003 candidate, not deployed)
+
+After classifying incoming money as Reimbursement, Telegram offers **Link to expense** with the transaction selector (Mini App when configured, otherwise browser). It does not require a generic description reply. Completion requires a resolved incoming reimbursement, a trimmed nonblank payer name and one eligible expense link; the note is optional. Ordinary transactions keep their category/description completion rule.
+
+Dashboard POST/PATCH commits the guarded transaction update and eligible email receipt intent in one D1 batch. The relationship triggers check parent eligibility, currency, chronology and capacity and increment affected parent versions. Manual transactions never queue per-transaction receipts. Historical migration creates no names, matches or messages. A durable `telegram_messages` receipt association prevents replacement receipts after corrections, even if the repayment is subsequently unlinked.
+
+Delivery rechecks current state after acquiring a transaction-level receipt lease shared by legacy and current receipt jobs. Incomplete, undelivered email jobs stay pending for retry, preserving a concurrent completion's intent. Already-delivered jobs finish without another send. Legacy description-reply associations are retained before coalescing jobs so cleanup still finds the original reply. Receipt delivery ambiguity retains the existing possible duplicate-message limitation; cleanup retries are independent of sending.
+
+Old description replies cannot complete reimbursements. Category callbacks guard the current version and unlinked state; a losing concurrent update neither consumes the update ID nor enqueues side effects. Duplicated/reversed ordinary replies retain their existing transaction-specific associations. The daily summary uses the shared adjusted spending projection, deducting at the original expense date; pending repayments add to outstanding details and never to income. Summary refresh/retry/expiry rules remain unchanged.

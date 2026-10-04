@@ -7,7 +7,7 @@ Authorized 3 October 2026: ER-01–06 implementation, synthetic/local verificati
 | ER-01 | — | Orchestrator | Done | CONTRACTS.md; docs/verification/expense-reimbursements/ER-01.md | 097aede; remote head confirmed |
 | ER-02 | ER-01 | Persistence agent | Done | docs/verification/expense-reimbursements/ER-02.md | 7ffac8d; remote head confirmed |
 | ER-03 | ER-02 | Reporting agent | Done | docs/verification/expense-reimbursements/ER-03.md | be2d32d; remote head confirmed |
-| ER-04 | ER-03 | UI agent | Locally verified; Telegram Web pending | docs/verification/expense-reimbursements/ER-04.md | ER-04 commit pending |
+| ER-04 | ER-03 | UI agent | Locally verified; Telegram Web pending | docs/verification/expense-reimbursements/ER-04.md | ef94d67; remote head confirmed |
 | ER-05 | ER-04 | Orchestrator | Locally verified | docs/verification/expense-reimbursements/ER-05.md | ER-05 commit pending |
 | ER-06 | ER-05 | Orchestrator + independent reviewer | Locally verified; Telegram Web pending | docs/verification/expense-reimbursements/ER-06.md | ER-06 commit pending |
 | ER-07 | ER-06 + authorization | Orchestrator | Blocked: authorization | No live mutations performed | Pending |

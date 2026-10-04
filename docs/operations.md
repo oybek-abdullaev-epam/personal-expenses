@@ -102,3 +102,11 @@ D1 has built-in **Time Travel** (point-in-time restore within Cloudflare's reten
 If **Open tracker** fails, open the ordinary dashboard via the `SITE_URL` link. Missing or invalid `TELEGRAM_APP_URL` omits app buttons without blocking notification delivery. Description prompts remain ForceReply and Gmail reconnection remains owner-operated in an ordinary browser; launch context supplies no access grant.
 
 Keep `.env.telegram-menu.json` from the original capture. `node scripts/mini-app-menu.mjs restore` restores and verifies the prior owner override after failed or ambiguous configuration. It never changes the default menu. Disable Worker app-button configuration and use the deployment rollback in [deployment.md](deployment.md#telegram-mini-app-controlled-rollout) if needed. Notification retries and cleanup continue in their existing outbox; no queue reset is part of recovery.
+
+## Reimbursements (FP-003 candidate, not deployed)
+
+An existing classified repayment becomes pending until a payer and eligible expense are selected; do not infer a person or link from its old description. Use the **Reimbursement** category filter to find both linked and pending repayments. Zero personal spending does not remove the original expense or its count. Corrections live in expense details and must include current repayment/parent versions.
+
+A `refresh_required` response means reload the dashboard so its financial contract matches the backend. A version/capacity conflict requires **Review latest** and a deliberate new save; never automatically refresh versions and replay a PATCH. An ambiguous manual creation reuses its frozen request ID/body, including old stored snapshots. Names and drafts stay in memory, so a full reload discards an unsaved draft.
+
+For interrupted activation, use the [dedicated release pause and compatible recovery procedure](deployment.md#fp-003-reimbursement-release-candidate-not-deployed). Never use the mailbox-reset Worker or pre-feature financial code after saved links exist. Pausing preserves queues and returns 503 to webhooks so Telegram can retry. A paused release is not a successful deployment.
