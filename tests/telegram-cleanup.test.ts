@@ -266,7 +266,7 @@ test("income description alone stays pending; category completes it once and sup
     callback_query: {
       id: "cb",
       from: { id: 42 },
-      data: `inc:${id}:1`,
+      data: `inc:${id}:0`,
       message: { message_id: 1, chat: { id: 42, type: "private" } },
     },
   };
@@ -282,7 +282,7 @@ test("income description alone stays pending; category completes it once and sup
   const receipts = sent.filter((s) => s.reply_markup?.remove_keyboard);
   assert.equal(receipts.length, 1);
   assert.match(receipts[0].text, /Income received/);
-  assert.match(receipts[0].text, /Reimbursement · Synthetic lunch/);
+  assert.match(receipts[0].text, /Salary · Synthetic lunch/);
   assert.ok(sent.every((s) => !s.reply_markup?.force_reply));
   assert.equal(
     sqlite

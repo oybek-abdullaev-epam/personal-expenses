@@ -724,7 +724,7 @@ test("income retry, duplicate updates and crossed replies preserve associations"
       callback_query: {
         id: "income-" + i,
         from: { id: 42 },
-        data: `inc:${item.id}:${i}`,
+        data: `inc:${item.id}:${i * 2}`,
         message: {
           message_id: Number(menu.message_id),
           chat: { id: 42, type: "private" },
@@ -765,7 +765,7 @@ test("income retry, duplicate updates and crossed replies preserve associations"
   assert.equal(
     sqlite.prepare("SELECT income_category FROM expenses WHERE id=?").get(a.id)!
       .income_category,
-    "Reimbursement",
+    "Other income",
   );
   await reminder(env, now + 3600000);
   assert.equal(

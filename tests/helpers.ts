@@ -30,7 +30,10 @@ export function message(
     },
   };
 }
-export function setup(migrateManual = true) {
+export function setup(
+  migrateManual = true,
+  migrateReimbursements = migrateManual,
+) {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys=ON");
   sqlite.exec(
@@ -59,6 +62,16 @@ export function setup(migrateManual = true) {
       readFileSync(
         new URL(
           "../backend/migrations/0004_manual_transactions.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
+  if (migrateReimbursements)
+    sqlite.exec(
+      readFileSync(
+        new URL(
+          "../backend/migrations/0005_reimbursements.sql",
           import.meta.url,
         ),
         "utf8",

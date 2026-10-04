@@ -16,11 +16,11 @@ Every JSON response has `Cache-Control: no-store`.
 
 ## Authentication
 
-| Endpoint group | Requirement |
-|---|---|
-| `/api/*` | Header `Authorization: Bearer <BACKEND_TOKEN>`, compared in constant time by `equalSecret()` in [`domain.ts`](../backend/src/domain.ts). If the token is missing or wrong, the response is 401. |
-| `/telegram/webhook` | Header `X-Telegram-Bot-Api-Secret-Token: <TELEGRAM_WEBHOOK_SECRET>`, otherwise 401. The update must also come from the owner's private chat (`ownerUpdate()`), otherwise 403. |
-| `/about`, `/privacy`, `/terms` | None. |
+| Endpoint group                 | Requirement                                                                                                                                                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/*`                       | Header `Authorization: Bearer <BACKEND_TOKEN>`, compared in constant time by `equalSecret()` in [`domain.ts`](../backend/src/domain.ts). If the token is missing or wrong, the response is 401. |
+| `/telegram/webhook`            | Header `X-Telegram-Bot-Api-Secret-Token: <TELEGRAM_WEBHOOK_SECRET>`, otherwise 401. The update must also come from the owner's private chat (`ownerUpdate()`), otherwise 403.                   |
+| `/about`, `/privacy`, `/terms` | None.                                                                                                                                                                                           |
 
 The public website never exposes the token. Its proxy adds the header on the server (see [frontend.md](frontend.md)).
 
@@ -30,15 +30,15 @@ Returns the newest transactions first, ordered by `occurred_at` (or `received_at
 
 **Query parameters** (all optional, parsed by `filters()`):
 
-| Param | Rule | Effect |
-|---|---|---|
-| `q` | ≤ 200 characters | Case-insensitive `LIKE` search on merchant or description. `%` and `_` are escaped. |
-| `category` | An expense category or an income category | Matches `COALESCE(income_category, category)`. |
-| `direction` | `expense` or `income` | Keeps only rows with that direction. |
-| `needsDetails` | `true` | Uses the `NEEDS_DETAILS` condition: a review item, an empty description, or a missing category. |
-| `from` | `YYYY-MM-DD` (Tashkent day) | Includes rows from that day's local 00:00 onward. |
-| `to` | `YYYY-MM-DD` (Tashkent day) | Includes rows up to the end of that day. `from` must not be later than `to`. |
-| `offset` | Integer with 1–7 digits | Pagination offset. |
+| Param          | Rule                                      | Effect                                                                                          |
+| -------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `q`            | ≤ 200 characters                          | Case-insensitive `LIKE` search on merchant or description. `%` and `_` are escaped.             |
+| `category`     | An expense category or an income category | Matches `COALESCE(income_category, category)`.                                                  |
+| `direction`    | `expense` or `income`                     | Keeps only rows with that direction.                                                            |
+| `needsDetails` | `true`                                    | Uses the `NEEDS_DETAILS` condition: a review item, an empty description, or a missing category. |
+| `from`         | `YYYY-MM-DD` (Tashkent day)               | Includes rows from that day's local 00:00 onward.                                               |
+| `to`           | `YYYY-MM-DD` (Tashkent day)               | Includes rows up to the end of that day. `from` must not be later than `to`.                    |
+| `offset`       | Integer with 1–7 digits                   | Pagination offset.                                                                              |
 
 **Response 200:**
 
@@ -46,11 +46,23 @@ Returns the newest transactions first, ordered by `occurred_at` (or `received_at
 {
   "expenses": [
     {
-      "id": "…uuid…", "source": "email", "source_message_id": "…", "manual_request": null,
-      "received_at": 1790000000000, "occurred_at": "2026-09-22T14:44:00.000Z",
-      "merchant": "SAMPLE TAXI", "card_suffix": "1234", "amount_minor": 3050000, "currency": "UZS",
-      "direction": "expense", "category": "Transport", "income_category": null,
-      "description": "Airport", "review_reason": null, "dismissed": 0, "version": 3
+      "id": "…uuid…",
+      "source": "email",
+      "source_message_id": "…",
+      "manual_request": null,
+      "received_at": 1790000000000,
+      "occurred_at": "2026-09-22T14:44:00.000Z",
+      "merchant": "SAMPLE TAXI",
+      "card_suffix": "1234",
+      "amount_minor": 3050000,
+      "currency": "UZS",
+      "direction": "expense",
+      "category": "Transport",
+      "income_category": null,
+      "description": "Airport",
+      "review_reason": null,
+      "dismissed": 0,
+      "version": 3
     }
   ],
   "nextOffset": 50
@@ -72,7 +84,14 @@ This route performs one parameterized primary-key lookup, independently of list 
 It uses the same filters as `/api/expenses` (but ignores `offset`), leaves out review items, and sums every matching row with BigInt:
 
 ```json
-[{ "currency": "UZS", "amount_minor": "3050000", "income_minor": "0", "net_minor": "-3050000" }]
+[
+  {
+    "currency": "UZS",
+    "amount_minor": "3050000",
+    "income_minor": "0",
+    "net_minor": "-3050000"
+  }
+]
 ```
 
 `amount_minor` is **spending**. The field name is historical. All three values are decimal strings, so exact sums survive JSON (see [data-model.md](data-model.md#money)).
@@ -84,12 +103,16 @@ It uses the same filters as `/api/expenses` (but ignores `offset`), leaves out r
 ```json
 {
   "month": "2026-09",
-  "currencies": [{
-    "currency": "UZS",
-    "spending_minor": "…", "income_minor": "…", "net_minor": "…",
-    "days":       [{ "date": "2026-09-22", "spending_minor": "…", "count": 2 }],
-    "categories": [{ "category": "Food",   "spending_minor": "…", "count": 5 }]
-  }]
+  "currencies": [
+    {
+      "currency": "UZS",
+      "spending_minor": "…",
+      "income_minor": "…",
+      "net_minor": "…",
+      "days": [{ "date": "2026-09-22", "spending_minor": "…", "count": 2 }],
+      "categories": [{ "category": "Food", "spending_minor": "…", "count": 5 }]
+    }
+  ]
 }
 ```
 
@@ -101,7 +124,11 @@ It uses the same filters as `/api/expenses` (but ignores `offset`), leaves out r
 
 ```json
 {
-  "sync": { "activated_at": 1790000000000, "last_success": 1790000300000, "error": null },
+  "sync": {
+    "activated_at": 1790000000000,
+    "last_success": 1790000300000,
+    "error": null
+  },
   "notifications": { "pending": 0, "failed": 0 }
 }
 ```
@@ -135,28 +162,32 @@ It creates the `sync_state` row with `activated_at = cursor_at = now` if the row
 
 Every field is checked by `manualDetails()` in [`manual.ts`](../backend/src/manual.ts):
 
-| Field | Rule |
-|---|---|
-| `id` | A UUID chosen by the client (uppercase is accepted and stored lowercase). It is both the idempotency key and the new row's `id`. |
-| `direction` | `expense` or `income`. |
-| `merchant` | 1–250 characters after trimming. |
-| `amount` | `^\d+(\.\d{1,2})?$`, greater than 0, and at most 2⁵³−1 minor units. |
-| `currency` | `UZS`, `USD`, `EUR` or `RUB`. |
-| `local_time` | `dd.mm.yy HH:MM[:SS]` in Tashkent time. It must be a real date and not in the future. The two-digit year allows 2000–2099. |
-| `category` or `income_category` | Required, and it must match the direction. The other one is stored as null. |
-| `description` | 1–500 characters. It is **required** for manual rows. |
-| `card_suffix` | Optional, 4 digits. |
+| Field                           | Rule                                                                                                                             |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                            | A UUID chosen by the client (uppercase is accepted and stored lowercase). It is both the idempotency key and the new row's `id`. |
+| `direction`                     | `expense` or `income`.                                                                                                           |
+| `merchant`                      | 1–250 characters after trimming.                                                                                                 |
+| `amount`                        | `^\d+(\.\d{1,2})?$`, greater than 0, and at most 2⁵³−1 minor units.                                                              |
+| `currency`                      | `UZS`, `USD`, `EUR` or `RUB`.                                                                                                    |
+| `local_time`                    | `dd.mm.yy HH:MM[:SS]` in Tashkent time. It must be a real date and not in the future. The two-digit year allows 2000–2099.       |
+| `category` or `income_category` | Required, and it must match the direction. The other one is stored as null.                                                      |
+| `description`                   | 1–500 characters for ordinary manual rows; an optional trimmed note of at most 500 JS characters for Reimbursement.              |
+| `payer_name`                    | Optional while pending; trimmed From label, at most 100 Unicode code points. Nonblank when linked.                               |
+| `reimbursement_expense_id`      | UUID or null; one eligible expense for the whole repayment.                                                                      |
+| `parent_versions`               | Expected versions keyed by parent UUID; required when creating with a link. Excluded from the idempotency snapshot.              |
+| `card_suffix`                   | Optional, 4 digits.                                                                                                              |
 
 **Responses:**
 
-| Status | When |
-|---|---|
-| **201** + row | Created. |
-| **200** + row | This `id` already exists with **identical** validated details, so it is a retry and nothing changes. |
-| **409** | This `id` already exists with different details, or it belongs to an email row. |
-| **400** | Invalid JSON or a validation error. The message can be shown to the user as-is. |
+| Status        | When                                                                                                                  |
+| ------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **201** + row | Created.                                                                                                              |
+| **200** + row | This `id` already exists with **identical** validated details, so it is a retry and nothing changes.                  |
+| **409**       | This `id` already exists with different details, belongs to an email row, or parent state/version/capacity conflicts. |
+| **404**       | A selected parent record is missing.                                                                                  |
+| **400**       | Invalid JSON or a validation error. The message can be shown to the user as-is.                                       |
 
-The details are compared against the **original** snapshot in `manual_request`. That snapshot is not updated by PATCH, so replaying the original create after an edit still returns 200 with the *edited* row.
+The details are compared against the **original** snapshot in `manual_request`. That snapshot is not updated by PATCH, so replaying the original create after an edit still returns 200 with the _edited_ row. Identity is checked before current parent eligibility/version validation, so replaying a successful creation does not allocate twice even after parent versions change. Ordinary snapshots retain their exact old serialization; legacy reimbursement snapshots without metadata remain accepted for matching retries. Pending manual reimbursements may omit payer, link and note.
 
 ## `PATCH /api/expenses/:id`: edit a transaction
 
@@ -170,17 +201,24 @@ What the body can contain depends on `source`:
 
 **Email rows** (`source: "email"`): the PATCH is partial. Send any of these:
 
-| Field | Rule |
-|---|---|
-| `category` | An expense category or `null`. The row must be `direction = expense`. |
-| `income_category` | An income category or `null`. The row must be `direction = income`. |
-| `description` | A string of at most 500 characters. It is trimmed, and it may be empty. |
-| `dismiss: true` | Review items only. Sets `dismissed = 1`, which hides the row. |
+| Field                                                                          | Rule                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `category`                                                                     | An expense category or `null`. The row must be `direction = expense`.                                                                                                                                                                     |
+| `income_category`                                                              | An income category or `null`. The row must be `direction = income`.                                                                                                                                                                       |
+| `description`                                                                  | A string of at most 500 JS characters. It is trimmed, and it may be empty.                                                                                                                                                                |
+| `payer_name`                                                                   | Trimmed From label of at most 100 Unicode code points.                                                                                                                                                                                    |
+| `reimbursement_expense_id`                                                     | A parent UUID or null.                                                                                                                                                                                                                    |
+| `parent_versions`                                                              | Expected version for each distinct old/new parent; required for any linked source save or relationship change.                                                                                                                            |
+| `dismiss: true`                                                                | Review items only. Sets `dismissed = 1`, which hides the row.                                                                                                                                                                             |
 | `resolve: { merchant, card_suffix, currency, amount, local_time, direction? }` | Review items only. Fills in the transaction fields and clears `review_reason`, so the row starts counting in totals. `amount` must have exactly 2 decimals, and `local_time` must be `dd.mm.yy HH:MM`. `direction` defaults to `expense`. |
 
 Parsed email fields such as amount or merchant **cannot** be edited on a normal email row. Only the owner's details can be changed.
 
-Edits on the website don't send or delete Telegram messages. As a result, a row completed on the website leaves its Telegram prompt in the chat (see [operations.md](operations.md#known-limitations-and-sharp-edges)).
+A relationship save validates the source direction/category, resolved states, nonblank payer, currency, chronology and capacity atomically. Parent edits also validate all linked repayments. Invalidating amount/date/currency/direction/category edits must follow a separate unlink save, including manual changes. Source versions and all affected parent versions are checked in one conditional UPDATE. Relationship and linked source detail/financial changes increment each distinct parent once. Missing parent versions return 400, missing records 404, and stale versions or invalidating state/capacity return 409; stable `code` fields distinguish common conflicts.
+
+Retry the frozen PATCH with the original versions. A successful response that was lost then retried returns 409; reload and review the latest transaction instead of guessing a new version.
+
+Completing an email Reimbursement on the dashboard queues deterministic `receipt:<id>` atomically with the successful mutation if no retained Telegram receipt association proves prior delivery. A skipped intent is revived when completion becomes valid; `sent_at` alone does not prove delivery. Zero-row conditional updates cannot queue receipts. Delivered receipts are never replaced, and manual transactions retain their no-per-record-message policy. Ordinary website edits keep their existing message policy. This candidate behavior requires the separately authorized reimbursement rollout.
 
 Until a receipt is delivered, pending category buttons and recorded description prompts remain valid: an accepted chat update can replace that field after a dashboard edit and increments its version. Dashboard edits using an earlier version then return 409. Receipt retries read current details. Once a receipt exists, its category buttons and prompts are retired even if cleanup is still retrying or a later dashboard edit reopens the row. Opening a transaction link does not reconcile or change this lifecycle.
 
@@ -188,12 +226,12 @@ Until a receipt is delivered, pending category buttons and recorded description 
 
 Telegram calls this endpoint for every button press and every message the owner sends to the bot.
 
-| Status | When |
-|---|---|
-| 405 | Not a POST. |
-| 401 | The secret header is wrong. |
-| 400 | Invalid JSON, or no integer `update_id`. |
-| 403 | Not the owner's private chat. |
+| Status          | When                                         |
+| --------------- | -------------------------------------------- |
+| 405             | Not a POST.                                  |
+| 401             | The secret header is wrong.                  |
+| 400             | Invalid JSON, or no integer `update_id`.     |
+| 403             | Not the owner's private chat.                |
 | 200 `{ok:true}` | Handled, including stale or ignored updates. |
 
 After handling the update, it starts `deliver()` in the background (`ctx.waitUntil`), so the next Telegram message goes out immediately instead of waiting for the cron. The update handling itself is described in [transaction-lifecycle.md](transaction-lifecycle.md#6-the-owner-answers-on-telegram-handleupdate-in-telegramts).
@@ -202,16 +240,16 @@ After handling the update, it starts `deliver()` in the background (`ctx.waitUnt
 
 The `Env` type is defined in [`domain.ts`](../backend/src/domain.ts), and the non-secret settings are in [`backend/wrangler.toml`](../backend/wrangler.toml).
 
-| Name | Kind | Purpose | Where it comes from |
-|---|---|---|---|
-| `DB` | D1 binding | The `expenses` database. | `[[d1_databases]]` in `wrangler.toml` |
-| `SITE_URL` | Plain var | The dashboard link in Telegram messages. | `[vars]` in `wrangler.toml` |
-| `TELEGRAM_APP_URL` | Optional plain var | Validated HTTPS root for Mini App launch buttons; record buttons add only a canonical UUID selector. Missing/invalid configuration retains browser links. | Deployment configuration; distinct from `SITE_URL` |
-| `BACKEND_TOKEN` | Secret | Bearer token for `/api/*`. It is shared with Vercel. | Generated by `scripts/google-oauth.mjs` |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Secret | The Google OAuth Desktop client. | The Google Cloud client JSON, via `google-oauth.mjs` |
-| `GOOGLE_REFRESH_TOKEN` | Secret | Read-only Gmail access. | `google-oauth.mjs` browser consent |
-| `TELEGRAM_BOT_TOKEN` | Secret | The bot's API token. | BotFather |
-| `TELEGRAM_WEBHOOK_SECRET` | Secret | Checks that webhook calls come from Telegram. | Generated by `google-oauth.mjs` |
-| `TELEGRAM_OWNER_ID` | Secret | The only chat and user allowed, as a numeric string. | `node scripts/integrations.mjs owner` |
+| Name                                       | Kind               | Purpose                                                                                                                                                   | Where it comes from                                  |
+| ------------------------------------------ | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `DB`                                       | D1 binding         | The `expenses` database.                                                                                                                                  | `[[d1_databases]]` in `wrangler.toml`                |
+| `SITE_URL`                                 | Plain var          | The dashboard link in Telegram messages.                                                                                                                  | `[vars]` in `wrangler.toml`                          |
+| `TELEGRAM_APP_URL`                         | Optional plain var | Validated HTTPS root for Mini App launch buttons; record buttons add only a canonical UUID selector. Missing/invalid configuration retains browser links. | Deployment configuration; distinct from `SITE_URL`   |
+| `BACKEND_TOKEN`                            | Secret             | Bearer token for `/api/*`. It is shared with Vercel.                                                                                                      | Generated by `scripts/google-oauth.mjs`              |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Secret             | The Google OAuth Desktop client.                                                                                                                          | The Google Cloud client JSON, via `google-oauth.mjs` |
+| `GOOGLE_REFRESH_TOKEN`                     | Secret             | Read-only Gmail access.                                                                                                                                   | `google-oauth.mjs` browser consent                   |
+| `TELEGRAM_BOT_TOKEN`                       | Secret             | The bot's API token.                                                                                                                                      | BotFather                                            |
+| `TELEGRAM_WEBHOOK_SECRET`                  | Secret             | Checks that webhook calls come from Telegram.                                                                                                             | Generated by `google-oauth.mjs`                      |
+| `TELEGRAM_OWNER_ID`                        | Secret             | The only chat and user allowed, as a numeric string.                                                                                                      | `node scripts/integrations.mjs owner`                |
 
 All seven secrets are kept locally in the git-ignored `.env.production.json`. They are uploaded with `node scripts/deploy-secrets.mjs` (see [deployment.md](deployment.md#secrets)). For local `npm run dev`, put them in `backend/.dev.vars` (copy [`backend/.dev.vars.example`](../backend/.dev.vars.example)).

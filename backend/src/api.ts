@@ -1,3 +1,4 @@
+import { MutationError, reimbursementFields, updateExpense } from "./reimbursements";
 import {
   category,
   incomeCategory,
@@ -95,7 +96,20 @@ export async function api(
     } catch (e) {
       return json({ error: (e as Error).message }, 400);
     }
-    const result = await saveManual(env, body.id.toLowerCase(), details, now);
+    let result;
+    try {
+      result = await saveManual(
+        env,
+        body.id.toLowerCase(),
+        details,
+        now,
+        body.parent_versions,
+      );
+    } catch (e) {
+      if (e instanceof MutationError)
+        return json({ error: e.message, code: e.code }, e.status);
+      throw e;
+    }
     if (result.conflict)
       return json(
         {
@@ -288,20 +302,29 @@ export async function api(
       } catch (e) {
         return json({ error: (e as Error).message }, 400);
       }
-      const entries = Object.entries(details);
-      const result = await sql(
-        env,
-        `UPDATE expenses SET ${entries.map(([key]) => key + "=?").join(",")},version=version+1 WHERE id=? AND version=?`,
-        ...entries.map(([, value]) => value as string | number | null),
-        existing.id,
-        body.version as number,
-      ).run();
-      if (!result.meta.changes)
+      const entries = Object.entries(details) as [
+        string,
+        string | number | null,
+      ][];
+      // Full replacement clears reimbursement metadata after a separate unlink.
+      if (!("payer_name" in details))
+        entries.push(["payer_name", ""], ["reimbursement_expense_id", null]);
+      try {
         return json(
-          { error: "This transaction changed. Refresh and try again." },
-          409,
+          await updateExpense(
+            env,
+            existing,
+            entries,
+            body.version as number,
+            body.parent_versions,
+            now,
+          ),
         );
-      return json(await getExpense(env, existing.id));
+      } catch (e) {
+        if (e instanceof MutationError)
+          return json({ error: e.message, code: e.code }, e.status);
+        throw e;
+      }
     }
     const fields: string[] = [],
       values: (string | number | null)[] = [];
@@ -348,6 +371,16 @@ export async function api(
       fields.push("description=?");
       values.push(body.description.trim());
     }
+    try {
+      for (const [key, value] of Object.entries(reimbursementFields(body))) {
+        fields.push(`${key}=?`);
+        values.push(value);
+      }
+    } catch (e) {
+      if (e instanceof MutationError)
+        return json({ error: e.message, code: e.code }, e.status);
+      throw e;
+    }
     if (body.dismiss === true && existing.review_reason) {
       fields.push("dismissed=1");
     }
@@ -382,19 +415,36 @@ export async function api(
       }
     }
     if (!fields.length) return json({ error: "No changes supplied" }, 400);
-    const result = await sql(
-      env,
-      `UPDATE expenses SET ${fields.join(",")},version=version+1 WHERE id=? AND version=?`,
-      ...values,
-      m[1],
-      body.version as number,
-    ).run();
-    if (!result.meta.changes)
+    // Convert validated partial fields into one conditional mutation. Literal
+    // reset fields are represented as values too, so all paths use the same guards.
+    let index = 0;
+    const entries = fields.map((field): [string, string | number | null] => {
+      const [key, value] = field.split("=");
+      return [
+        key,
+        value === "?"
+          ? values[index++]
+          : value === "NULL"
+            ? null
+            : Number(value),
+      ];
+    });
+    try {
       return json(
-        { error: "This expense changed. Refresh and try again." },
-        409,
+        await updateExpense(
+          env,
+          existing,
+          entries,
+          body.version as number,
+          body.parent_versions,
+          now,
+        ),
       );
-    return json(await getExpense(env, m[1]));
+    } catch (e) {
+      if (e instanceof MutationError)
+        return json({ error: e.message, code: e.code }, e.status);
+      throw e;
+    }
   }
   return json({ error: "Not found" }, 404);
 }

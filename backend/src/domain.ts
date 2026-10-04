@@ -15,8 +15,30 @@ export const INCOME_CATEGORIES = [
 ] as const;
 export type IncomeCategory = (typeof INCOME_CATEGORIES)[number];
 export type Direction = "expense" | "income";
-export const NEEDS_DETAILS =
-  "(review_reason IS NOT NULL OR description='' OR (direction='expense' AND category IS NULL) OR (direction='income' AND income_category IS NULL))";
+// SQLite's default trim only removes ASCII spaces. Match String.trim for
+// legacy notes and direct writes as well as normalized API input.
+export const SQL_WHITESPACE =
+  "char(9,10,11,12,13,32,160,5760,8192,8193,8194,8195,8196,8197,8198,8199,8200,8201,8202,8232,8233,8239,8287,12288,65279)";
+export function needsDetailsSql(alias = "") {
+  const p = alias ? `${alias}.` : "";
+  return `(${p}review_reason IS NOT NULL OR CASE WHEN ${p}direction='income' AND ${p}income_category='Reimbursement' THEN (trim(${p}payer_name,${SQL_WHITESPACE})='' OR ${p}reimbursement_expense_id IS NULL) ELSE (trim(${p}description,${SQL_WHITESPACE})='' OR (${p}direction='expense' AND ${p}category IS NULL) OR (${p}direction='income' AND ${p}income_category IS NULL)) END)`;
+}
+export const NEEDS_DETAILS = needsDetailsSql();
+export function isReimbursement(
+  e: Pick<Expense, "direction" | "income_category">,
+) {
+  return e.direction === "income" && e.income_category === "Reimbursement";
+}
+export function complete(e: Expense) {
+  return (
+    !e.dismissed &&
+    e.review_reason === null &&
+    (isReimbursement(e)
+      ? !!e.payer_name.trim() && !!e.reimbursement_expense_id
+      : !!e.description.trim() &&
+        !!(e.direction === "income" ? e.income_category : e.category))
+  );
+}
 export function incomeCategory(value: unknown): value is IncomeCategory {
   return INCOME_CATEGORIES.includes(value as IncomeCategory);
 }
@@ -48,6 +70,8 @@ export interface Expense {
   income_category: IncomeCategory | null;
   category: Category | null;
   description: string;
+  payer_name: string;
+  reimbursement_expense_id: string | null;
   review_reason: string | null;
   dismissed: number;
   version: number;

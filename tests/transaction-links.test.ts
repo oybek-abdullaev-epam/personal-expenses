@@ -263,7 +263,7 @@ function callback(
     callback_query: {
       id: `callback-${updateId}`,
       from: { id: 42 },
-      data: `${income ? "inc" : "cat"}:${id}:1`,
+      data: `${income ? "inc" : "cat"}:${id}:${income ? 2 : 1}`,
       message: { message_id: messageId, chat: { id: 42, type: "private" } },
     },
   };
@@ -359,7 +359,7 @@ test("dashboard edits, reversed chat replies, stale prompts and receipt/cleanup 
   assert.equal((await record(a.id)).description, "Expense reply");
   assert.equal((await record(a.id)).category, "Health");
   assert.equal((await record(b.id)).description, "Income reply");
-  assert.equal((await record(b.id)).income_category, "Reimbursement");
+  assert.equal((await record(b.id)).income_category, "Other income");
   assert.equal(
     (
       await patch(a.id, {

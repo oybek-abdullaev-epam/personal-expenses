@@ -1,4 +1,5 @@
 import { category, incomeCategory, localDateTime, money } from "./domain";
+import { reimbursementFields } from "./reimbursements";
 
 // Manual entry is independent of email parsing and Telegram delivery.
 export function manualDetails(body: Record<string, unknown>, now: number) {
@@ -23,10 +24,13 @@ export function manualDetails(body: Record<string, unknown>, now: number) {
     !["UZS", "USD", "EUR", "RUB"].includes(currency)
   )
     throw Error("Choose a supported currency.");
+  const reimbursement =
+    direction === "income" && body.income_category === "Reimbursement";
+  const note = reimbursement && description === undefined ? "" : description;
   if (
-    typeof description !== "string" ||
-    !description.trim() ||
-    description.trim().length > 500
+    typeof note !== "string" ||
+    (!reimbursement && !note.trim()) ||
+    note.trim().length > 500
   )
     throw Error("Enter a description (up to 500 characters).");
   if (
@@ -61,15 +65,29 @@ export function manualDetails(body: Record<string, unknown>, now: number) {
       "Enter a valid Tashkent date and time that is not in the future.",
     );
   }
-  return {
+  const metadata = reimbursementFields(body);
+  if (
+    !reimbursement &&
+    (metadata.payer_name || metadata.reimbursement_expense_id)
+  )
+    throw Error("Reimbursement details require the Reimbursement category.");
+  const details = {
     direction,
     merchant: merchant.trim(),
     currency,
-    description: description.trim(),
+    description: (note as string).trim(),
     card_suffix: card_suffix || null,
     occurred_at,
     amount_minor,
     category: direction === "expense" ? (chosen as string) : null,
     income_category: direction === "income" ? (chosen as string) : null,
   };
+  // Keep ordinary snapshots byte-for-byte compatible with pre-feature requests.
+  return reimbursement
+    ? {
+        ...details,
+        payer_name: metadata.payer_name ?? "",
+        reimbursement_expense_id: metadata.reimbursement_expense_id ?? null,
+      }
+    : details;
 }

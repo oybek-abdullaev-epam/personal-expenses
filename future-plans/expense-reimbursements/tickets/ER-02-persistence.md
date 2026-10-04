@@ -1,6 +1,6 @@
 # ER-02: Reimbursement persistence and atomic mutations
 
-- **Status:** Backlog
+- **Status:** Done
 - **Proposal:** [Expense reimbursements](../PLAN.md)
 - **Depends on:** [ER-01](ER-01-contracts.md)
 - **Risks:** [R02](../RISKS.md#r02), [R03](../RISKS.md#r03), [R04](../RISKS.md#r04), [R06](../RISKS.md#r06)
@@ -34,15 +34,15 @@ New migration and test harness registration; persistence/domain/manual modules; 
 
 ## Acceptance checks
 
-- [ ] Migration on populated synthetic history preserves IDs, source deduplication, manual snapshots, activation/cursor, outbox jobs, and pending Telegram associations, with no queued migration messages.
-- [ ] Multiple named repayments can link to one expense; a repayment cannot link twice or be split. Original bank fields remain unchanged.
-- [ ] Missing/blank names and invalid targets/currencies/dates/capacity are rejected at the server, while incomplete pending records remain saveable.
-- [ ] Concurrent repayments competing for remaining capacity cannot jointly over-reimburse; stale versions conflict without partial writes.
-- [ ] Injected failures during relink/unlink and retry after an ambiguous response preserve the old or new complete state, never a partial state or double allocation.
-- [ ] Parent and repayment manual edits, category changes, and clearing a payer cannot bypass invariants; compatible note/name edits remain usable.
-- [ ] Manual request-ID retries remain idempotent after later edits, and ordinary description validation remains unchanged.
-- [ ] Direct unauthorized writes and disallowed proxy operations remain rejected; persistence tests and typecheck pass.
+- [x] Migration on populated synthetic history preserves IDs, source deduplication, manual snapshots, activation/cursor, outbox jobs, and pending Telegram associations, with no queued migration messages.
+- [x] Multiple named repayments can link to one expense; a repayment cannot link twice or be split. Original bank fields remain unchanged.
+- [x] Missing/blank names and invalid targets/currencies/dates/capacity are rejected at the server, while incomplete pending records remain saveable.
+- [x] Concurrent repayments competing for remaining capacity cannot jointly over-reimburse; stale versions conflict without partial writes.
+- [x] Injected failures during relink/unlink and retry after an ambiguous response preserve the old or new complete state, never a partial state or double allocation.
+- [x] Parent and repayment manual edits, category changes, and clearing a payer cannot bypass invariants; compatible note/name edits remain usable.
+- [x] Manual request-ID retries remain idempotent after later edits, and ordinary description validation remains unchanged.
+- [x] Direct unauthorized writes and disallowed proxy operations remain rejected; persistence tests and typecheck pass.
 
 ## Completion evidence
 
-Not started. Record migration/change references, tests and actual outcomes, concurrency/failure evidence, and unresolved limitations using synthetic data.
+[ER-02 evidence](../../../docs/verification/expense-reimbursements/ER-02.md). Implementation and focused/independent verification passed; commit/push recorded in ORCHESTRATION.md.
