@@ -68,6 +68,7 @@ async function api(path, options = {}) {
   const r = await fetch(path, {
     ...options,
     signal: timeoutSignal(20000),
+    headers: { ...options.headers, "X-Tracker-Contract": "reimbursements-v1" },
   });
   let data;
   try {
@@ -83,6 +84,7 @@ async function api(path, options = {}) {
       data.error || "Something went wrong. Please try again.",
     );
     error.status = r.status;
+    error.code = data.code;
     error.uncertain = r.status >= 500;
     throw error;
   }
@@ -147,12 +149,23 @@ function displayName(raw) {
     w.length <= 2 || !/[AEIOUY]/.test(w) ? w : w[0] + w.slice(1).toLowerCase(),
   );
 }
+function isReimbursement(e) {
+  return e?.direction === "income" && e.income_category === "Reimbursement";
+}
+function personalSpending(e) {
+  return e.personal_spending_minor ?? e.amount_minor ?? "0";
+}
 function row(e, showCard) {
   const income = e.direction === "income",
     review = Boolean(e.review_reason),
     label = income ? e.income_category : e.category,
     at = e.occurred_at || e.received_at;
-  const needs = !review && (!label || !e.description);
+  const repayment = isReimbursement(e);
+  const needs =
+    !review &&
+    (repayment
+      ? !e.payer_name?.trim() || !e.reimbursement_expense_id
+      : !label || !e.description);
   const button = node(
     "button",
     undefined,
@@ -162,7 +175,14 @@ function row(e, showCard) {
   const sub = node("span", undefined, "sub"),
     when = node("span", undefined, "when");
   if (review) sub.append("Check the email");
-  else {
+  else if (repayment) {
+    sub.append(node("span", "Reimbursement", "cat"));
+    if (e.payer_name) sub.append(" · From " + e.payer_name);
+    else sub.append(" · ", node("span", "Needs a name", "missing"));
+    if (!e.reimbursement_expense_id)
+      sub.append(" · ", node("span", "Needs an expense", "missing"));
+    if (e.description) sub.append(" · " + e.description);
+  } else {
     sub.append(
       label
         ? node("span", label, "cat")
@@ -176,6 +196,13 @@ function row(e, showCard) {
     else if (label)
       sub.append(" ", node("span", "Add a description", "missing"));
   }
+  if (!income && !review && BigInt(e.reimbursed_minor ?? "0") > 0n)
+    sub.append(
+      " · Paid " +
+        money(e.original_minor ?? e.amount_minor, e.currency) +
+        " · Reimbursed " +
+        money(e.reimbursed_minor, e.currency),
+    );
   if (e.source === "manual") when.append(node("span", "Manual", "tag"));
   if (showCard && e.card_suffix) {
     const card = node("span", "••" + e.card_suffix);
@@ -189,8 +216,17 @@ function row(e, showCard) {
     // UZS is the default and goes unmarked; other currencies keep their code.
     amt = node(
       "span",
-      (income ? "+" : "−") + money(e.amount_minor, e.currency).split(" ")[0],
-      "figure amt" + (income ? " in" : ""),
+      (repayment
+        ? ""
+        : income
+          ? "+"
+          : BigInt(personalSpending(e)) === 0n
+            ? ""
+            : "−") +
+        money(income ? e.amount_minor : personalSpending(e), e.currency).split(
+          " ",
+        )[0],
+      "figure amt" + (income && !repayment ? " in" : ""),
     );
     if (e.currency !== "UZS") amt.append(node("span", e.currency, "cur"));
     else amt.append(node("span", " UZS", "sr"));
@@ -207,7 +243,7 @@ function row(e, showCard) {
     when,
   );
   if (e.merchant) button.title = e.merchant;
-  button.onclick = () => openEditor(e);
+  button.onclick = () => openTransaction(e);
   const li = node("li");
   li.append(button);
   return li;
@@ -215,12 +251,15 @@ function row(e, showCard) {
 function dayHeader(label, spent) {
   const h = node("h2");
   h.append(node("span", label));
-  const sums = [...spent].filter(([, v]) => v > 0n);
+  const sums = [...spent];
   if (sums.length) {
     const total = node("span", undefined, "day-total");
     total.append(node("span", "Spent ", "sr"));
     for (const [cur, v] of sums) {
-      const part = node("span", "−" + money(v, cur).split(" ")[0]);
+      const part = node(
+        "span",
+        (v > 0n ? "−" : "") + money(v, cur).split(" ")[0],
+      );
       if (cur !== "UZS") part.append(node("span", cur, "cur"));
       total.append(part);
     }
@@ -251,7 +290,7 @@ function render() {
       day.spends++;
       day.spent.set(
         e.currency,
-        (day.spent.get(e.currency) ?? 0n) + BigInt(e.amount_minor),
+        (day.spent.get(e.currency) ?? 0n) + BigInt(personalSpending(e)),
       );
     }
   }
@@ -296,9 +335,9 @@ let activatedAt = null;
 function renderTotals(totals) {
   const box = $("totals");
   box.replaceChildren();
-  const lines = [...totals]
-    .sort((a, b) => (b.currency === "UZS") - (a.currency === "UZS"))
-    .filter((t) => BigInt(t.amount_minor) || BigInt(t.income_minor));
+  const lines = [...totals].sort(
+    (a, b) => (b.currency === "UZS") - (a.currency === "UZS"),
+  );
   box.hidden = !lines.length;
   if (lines.length) box.append(node("span", "Filtered", "filtered-label"));
   for (const total of lines) {
@@ -306,12 +345,14 @@ function renderTotals(totals) {
     for (const [name, value, sign] of [
       ["Spending", total.amount_minor, "−"],
       ["Income", total.income_minor, "+"],
+      ["Pending reimbursements", total.pending_reimbursement_minor ?? "0", ""],
     ]) {
-      if (!BigInt(value)) continue;
+      if (!BigInt(value) && name !== "Spending") continue;
       const part = node("span", name + " ");
       const amt = node(
         "span",
-        sign + money(value, total.currency).split(" ")[0],
+        (BigInt(value) ? sign : "") +
+          money(value, total.currency).split(" ")[0],
         "figure",
       );
       if (total.currency !== "UZS")
@@ -441,8 +482,421 @@ function updateCategories(value = "") {
     : categories)
     select.add(new Option(c, c));
   select.value = value;
+  updateReimbursementForm();
 }
+let reimbursementParent = null,
+  reimbursementParentVersions = {},
+  candidateCursor = null,
+  candidateVersion = 0,
+  repaymentsCursor = null,
+  repaymentsVersion = 0,
+  reimbursementReturn = null,
+  correctionTarget = null,
+  correctionVersion = 0;
 edit.elements.direction.onchange = () => updateCategories();
+edit.elements.category.onchange = () => {
+  updateReimbursementForm();
+  editorState();
+  if (selected && isReimbursement(selected) && reimbursementMode())
+    loadCandidates();
+};
+async function openTransaction(record) {
+  if ($("editor").open) return;
+  const version = ++editorVersion;
+  try {
+    const detail = await api("/api/expenses/" + record.id);
+    if (version !== editorVersion || $("editor").open) return;
+    openEditor(detail);
+  } catch (error) {
+    if (version !== editorVersion) return;
+    $("toast").textContent = error.message;
+    $("toast").hidden = false;
+    setTimeout(() => ($("toast").hidden = true), 4000);
+  }
+}
+// Reimbursement drafts and navigation remain in memory, including a temporary
+// manual parent form. Reads never change relationship or source versions.
+function reimbursementMode() {
+  return (
+    Boolean(edit.elements.payer_name) &&
+    edit.elements.direction.value === "income" &&
+    edit.elements.category.value === "Reimbursement"
+  );
+}
+function updateReimbursementForm() {
+  if (!edit.elements.payer_name) return;
+  const active = reimbursementMode();
+  $("reimbursement-fields").hidden = !active;
+  $("description-label").textContent = active
+    ? "Note (optional)"
+    : "Description";
+  edit.elements.description.required =
+    !active && (!selected || selected.source === "manual");
+  // Pending saves may omit From; linking has explicit trimmed validation.
+  edit.elements.payer_name.required = false;
+  $("candidate-controls").hidden =
+    !active ||
+    !selected ||
+    Boolean(selected.review_reason) ||
+    !isReimbursement(selected);
+  $("candidate-first").hidden =
+    !active ||
+    Boolean(selected && !selected.review_reason && isReimbursement(selected));
+  $("expense-repayments").hidden =
+    !selected ||
+    Boolean(selected.review_reason) ||
+    selected.direction !== "expense";
+  $("parent-return").hidden = !reimbursementReturn;
+  renderReimbursementPreview();
+}
+function editorRepaymentMinor() {
+  if (selected?.source !== "manual" && selected)
+    return BigInt(selected.amount_minor || 0);
+  const raw = edit.elements.amount.value.trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(raw)) return null;
+  const [whole, fraction = ""] = raw.split(".");
+  return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
+}
+function costText(parent) {
+  return (
+    "Paid " +
+    money(parent.original_minor ?? parent.amount_minor, parent.currency) +
+    " · Reimbursed " +
+    money(parent.reimbursed_minor ?? "0", parent.currency) +
+    " · Your spending " +
+    money(personalSpending(parent), parent.currency)
+  );
+}
+function renderReimbursementPreview() {
+  if (!edit.elements.payer_name) return;
+  const box = $("reimbursement-preview");
+  box.replaceChildren();
+  if (!reimbursementMode()) return;
+  const parent = reimbursementParent;
+  if (!parent) {
+    box.append(node("p", "Pending reimbursement · Needs an expense"));
+    if (!edit.elements.payer_name.value.trim())
+      box.append(node("p", "Needs a name in From"));
+    return;
+  }
+  const repayment = editorRepaymentMinor();
+  box.append(
+    node("strong", parent.merchant),
+    node(
+      "p",
+      time(parent.occurred_at) +
+        (parent.description ? " · " + parent.description : ""),
+    ),
+    node("p", costText(parent)),
+  );
+  const previous =
+    BigInt(parent.reimbursed_minor ?? "0") -
+    (selected?.reimbursement_expense_id === parent.id
+      ? BigInt(selected.amount_minor)
+      : 0n);
+  const original = BigInt(parent.original_minor ?? parent.amount_minor);
+  if (repayment !== null) {
+    box.append(
+      node(
+        "p",
+        "After this repayment: " +
+          money(original, parent.currency) +
+          " − " +
+          money(previous + repayment, parent.currency) +
+          " = " +
+          money(original - previous - repayment, parent.currency) +
+          " your spending",
+      ),
+    );
+    if (previous + repayment > original)
+      box.append(
+        node(
+          "p",
+          "This repayment exceeds the remaining cost. Choose another expense or correct the repayment first.",
+          "missing",
+        ),
+      );
+  }
+  if (!edit.elements.payer_name.value.trim())
+    box.append(node("p", "Enter From to complete this link.", "missing"));
+}
+function chooseParent(parent) {
+  if (
+    saving ||
+    reviewingLatest ||
+    pendingSubmission ||
+    formConflict ||
+    editorConfirmation
+  )
+    return;
+  reimbursementParent = parent;
+  reimbursementParentVersions[parent.id] = parent.version;
+  edit.elements.reimbursement_expense_id.value = parent.id;
+  renderReimbursementPreview();
+  editorState();
+}
+async function loadCandidates(append = false) {
+  if (
+    !selected ||
+    !isReimbursement(selected) ||
+    !reimbursementMode() ||
+    selected.review_reason ||
+    saving ||
+    pendingSubmission ||
+    formConflict
+  )
+    return;
+  const source = selected.id,
+    editorAtStart = editorVersion,
+    version = ++candidateVersion;
+  const q = $("candidate-query").value.trim();
+  const query = new URLSearchParams({ q });
+  if (append && candidateCursor) query.set("cursor", candidateCursor);
+  $("candidate-status").textContent = "Loading eligible expenses…";
+  $("candidate-more").disabled = true;
+  try {
+    // A list projection may lack parent context; fetch it without refreshing the
+    // source's optimistic version or replacing draft fields.
+    if (
+      selected.reimbursement_expense_id &&
+      !reimbursementParent &&
+      edit.elements.reimbursement_expense_id.value ===
+        selected.reimbursement_expense_id
+    ) {
+      const detail = await api("/api/expenses/" + source);
+      if (
+        editorAtStart !== editorVersion ||
+        version !== candidateVersion ||
+        !$("editor").open
+      )
+        return;
+      if (detail.version !== selected.version) {
+        formConflict = true;
+        $("form-error").textContent =
+          "This transaction changed. Your draft is kept. Review latest before saving.";
+        editorState();
+        return;
+      }
+      if (
+        edit.elements.reimbursement_expense_id.value ===
+        selected.reimbursement_expense_id
+      ) {
+        reimbursementParent = detail.reimbursement_expense;
+        reimbursementParentVersions = { ...(detail.parent_versions || {}) };
+        renderReimbursementPreview();
+      }
+    }
+    const data = await api(
+      "/api/expenses/" + source + "/reimbursement-candidates?" + query,
+    );
+    if (
+      editorAtStart !== editorVersion ||
+      version !== candidateVersion ||
+      !$("editor").open ||
+      !reimbursementMode()
+    )
+      return;
+    if (!append) $("candidate-list").replaceChildren();
+    for (const parent of data.expenses) {
+      const button = node("button", undefined, "candidate btn"),
+        li = node("li");
+      button.type = "button";
+      button.append(
+        node("strong", parent.merchant),
+        node("span", time(parent.occurred_at)),
+        node("span", parent.description || "No description"),
+        node("span", costText(parent)),
+        node(
+          "span",
+          "Available for this repayment " +
+            money(parent.available_minor, parent.currency),
+        ),
+      );
+      button.onclick = () => chooseParent(parent);
+      li.append(button);
+      $("candidate-list").append(li);
+    }
+    candidateCursor = data.nextCursor;
+    $("candidate-more").hidden = !candidateCursor;
+    $("candidate-status").textContent = data.expenses.length
+      ? "Select an expense below. Your current selection is kept until you save."
+      : "No eligible expenses found. Search again or add the missing original expense.";
+  } catch (error) {
+    if (
+      editorAtStart !== editorVersion ||
+      version !== candidateVersion ||
+      !$("editor").open
+    )
+      return;
+    $("candidate-status").textContent =
+      error.message + " Your selection and draft are kept. Try Search again.";
+  } finally {
+    if (editorAtStart === editorVersion && version === candidateVersion)
+      editorState();
+  }
+}
+async function loadRepayments(append = false) {
+  if (!selected || selected.direction !== "expense" || selected.review_reason)
+    return;
+  const source = selected.id,
+    editorAtStart = editorVersion,
+    version = ++repaymentsVersion;
+  const query = new URLSearchParams();
+  if (append && repaymentsCursor) query.set("cursor", repaymentsCursor);
+  $("repayment-summary").textContent = costText(selected);
+  $("repayment-status").textContent = "Loading repayments…";
+  $("repayment-more").disabled = true;
+  try {
+    const data = await api(
+      "/api/expenses/" + source + "/reimbursements?" + query,
+    );
+    if (
+      editorAtStart !== editorVersion ||
+      version !== repaymentsVersion ||
+      !$("editor").open
+    )
+      return;
+    if (!append) $("repayment-list").replaceChildren();
+    for (const repayment of data.expenses) {
+      const li = node("li");
+      li.append(
+        node("strong", repayment.payer_name),
+        node(
+          "p",
+          money(repayment.amount_minor, repayment.currency) +
+            " · " +
+            time(repayment.occurred_at),
+        ),
+        node("p", repayment.description || ""),
+      );
+      const correct = node("button", "Correct name or expense link", "btn");
+      correct.type = "button";
+      correct.onclick = () => openCorrection(repayment.id);
+      li.append(correct);
+      $("repayment-list").append(li);
+    }
+    repaymentsCursor = data.nextCursor;
+    $("repayment-more").hidden = !repaymentsCursor;
+    $("repayment-status").textContent = data.expenses.length
+      ? "Repayments received"
+      : append
+        ? "No more repayments"
+        : "No linked repayments yet";
+  } catch (error) {
+    if (
+      editorAtStart !== editorVersion ||
+      version !== repaymentsVersion ||
+      !$("editor").open
+    )
+      return;
+    $("repayment-status").textContent =
+      error.message + " Try Refresh repayments.";
+  } finally {
+    if (editorAtStart === editorVersion && version === repaymentsVersion)
+      $("repayment-more").disabled = false;
+  }
+}
+async function openCorrection(id) {
+  if (saving || reviewingLatest || pendingSubmission || editorConfirmation)
+    return;
+  const version = editorVersion,
+    request = ++correctionVersion;
+  try {
+    const latest = await api("/api/expenses/" + id);
+    if (
+      request !== correctionVersion ||
+      version !== editorVersion ||
+      !$("editor").open
+    )
+      return;
+    if (editorDirty()) {
+      correctionTarget = latest;
+      confirmEditor("correction");
+    } else {
+      discardEditor();
+      openEditor(latest);
+    }
+  } catch (error) {
+    if (request === correctionVersion && version === editorVersion)
+      $("repayment-status").textContent =
+        error.message + " Your draft is kept.";
+  }
+}
+function addMissingParent() {
+  if (
+    !selected ||
+    !isReimbursement(selected) ||
+    !reimbursementMode() ||
+    saving ||
+    pendingSubmission ||
+    formConflict ||
+    editorConfirmation
+  )
+    return;
+  reimbursementReturn = {
+    record: selected,
+    fields: [...edit.elements]
+      .filter((field) => /^(INPUT|SELECT|TEXTAREA)$/.test(field.tagName))
+      .map((field) => [field.name, field.value]),
+    parent: reimbursementParent,
+    versions: { ...reimbursementParentVersions },
+    baseline: editorBaseline,
+    query: $("candidate-query").value,
+  };
+  discardEditor();
+  openEditor();
+  $("edit-title").textContent = "Add original expense";
+  $("edit-summary").textContent =
+    "Save the original payment, then return to your reimbursement. Your From and note are kept.";
+  edit.elements.currency.value = reimbursementReturn.record.currency;
+  edit.elements.local_time.value = localInput(
+    reimbursementReturn.record.occurred_at,
+  );
+  editorBaseline = editorValues();
+  updateReimbursementForm();
+}
+function restoreReimbursementDraft(parent = null) {
+  if (!reimbursementReturn) return;
+  const draft = reimbursementReturn;
+  reimbursementReturn = null;
+  openEditor(draft.record);
+  for (const [name, value] of draft.fields)
+    if (edit.elements[name]) edit.elements[name].value = value;
+  reimbursementParent = draft.parent;
+  reimbursementParentVersions = draft.versions;
+  editorBaseline = draft.baseline;
+  $("candidate-query").value = draft.query;
+  if (parent?.direction === "expense") chooseParent(parent);
+  updateReimbursementForm();
+  editorState();
+  loadCandidates();
+}
+$("candidate-search").onclick = () => loadCandidates();
+$("candidate-refresh").onclick = () => {
+  $("candidate-query").value = "";
+  loadCandidates();
+};
+$("candidate-more").onclick = () => loadCandidates(true);
+$("candidate-query").onkeydown = (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    loadCandidates();
+  }
+};
+$("repayment-more").onclick = () => loadRepayments(true);
+$("repayment-refresh").onclick = () => loadRepayments();
+$("clear-parent").onclick = () => {
+  if (saving || pendingSubmission || formConflict || editorConfirmation) return;
+  reimbursementParent = null;
+  if (edit.elements.reimbursement_expense_id)
+    edit.elements.reimbursement_expense_id.value = "";
+  renderReimbursementPreview();
+  editorState();
+};
+$("save-pending").onclick = () => save(false, true);
+$("add-parent").onclick = addMissingParent;
+$("parent-return").onclick = closeEditor;
+edit.addEventListener("input", () => renderReimbursementPreview());
 function localInput(iso) {
   return new Date(Date.parse(iso) + 5 * 3600000).toISOString().slice(0, 16);
 }
@@ -475,6 +929,7 @@ function editorState() {
         saving ||
         reviewingLatest ||
         Boolean(pendingSubmission) ||
+        (field.name === "direction" && Boolean(reimbursementReturn)) ||
         (field.name === "direction" &&
           selected &&
           selected.source !== "manual" &&
@@ -498,10 +953,42 @@ function editorState() {
     : selected
       ? "Save changes"
       : "Add transaction";
+  if (edit.elements.payer_name) {
+    const locked =
+      saving ||
+      reviewingLatest ||
+      Boolean(pendingSubmission) ||
+      formConflict ||
+      Boolean(editorConfirmation);
+    for (const id of [
+      "candidate-search",
+      "candidate-more",
+      "candidate-refresh",
+      "add-parent",
+      "clear-parent",
+      "save-pending",
+    ])
+      $(id).disabled = locked;
+    for (const button of $("candidate-list").querySelectorAll("button"))
+      button.disabled = locked;
+    $("save-pending").hidden =
+      !reimbursementMode() || !selected || !reimbursementParent;
+    $("save-pending").textContent = selected?.reimbursement_expense_id
+      ? "Unlink and save pending"
+      : "Save pending without linking";
+    if (!pendingSubmission && reimbursementMode())
+      $("save").textContent = reimbursementParent
+        ? "Link and save"
+        : selected
+          ? "Save pending"
+          : "Save pending, then choose expense";
+  }
   telegram.update();
 }
 function discardEditor() {
   editorVersion++;
+  candidateVersion++;
+  repaymentsVersion++;
   reviewingLatest = false;
   $("editor").close();
   pendingSubmission = null;
@@ -536,9 +1023,18 @@ function confirmEditor(action) {
 function closeEditor() {
   if (saving) return;
   if (editorDirty()) confirmEditor("close");
-  else discardEditor();
+  else {
+    const parent =
+      reimbursementReturn && selected?.direction === "expense"
+        ? selected
+        : null;
+    discardEditor();
+    if (reimbursementReturn) restoreReimbursementDraft(parent);
+  }
 }
 $("keep-editing").onclick = () => {
+  correctionVersion++;
+  correctionTarget = null;
   editorConfirmation = null;
   $("editor-confirm").hidden = true;
   editorState();
@@ -559,6 +1055,14 @@ $("confirm-discard").onclick = () => {
     // An unconfirmed save may have committed; refresh so the ledger shows it.
     const unconfirmed = Boolean(pendingSubmission);
     discardEditor();
+    if (correctionTarget) {
+      const target = correctionTarget;
+      correctionTarget = null;
+      openEditor(target);
+    } else if (reimbursementReturn)
+      restoreReimbursementDraft(
+        selected?.direction === "expense" ? selected : null,
+      );
     if (unconfirmed) {
       load();
       if (location.hash === "#month") loadMonth();
@@ -575,7 +1079,7 @@ const telegram = createTelegramAdapter({
     $("editor").open ||
     Boolean(launchSelection && launchSelection.kind !== "none") ||
     location.hash === "#month",
-  hasUnsavedChanges: editorDirty,
+  hasUnsavedChanges: () => editorDirty() || Boolean(reimbursementReturn),
 });
 edit.addEventListener("input", () => telegram.update());
 edit.addEventListener("change", () => telegram.update());
@@ -600,6 +1104,19 @@ function openEditor(e = null) {
   edit.elements.direction.disabled = !manual && !e.review_reason;
   updateCategories(e?.income_category || e?.category || "");
   edit.elements.description.value = e?.description || "";
+  if (edit.elements.payer_name) {
+    edit.elements.payer_name.value = e?.payer_name || "";
+    edit.elements.reimbursement_expense_id.value =
+      e?.reimbursement_expense_id || "";
+    reimbursementParent = e?.reimbursement_expense || e?.parent || null;
+    reimbursementParentVersions = { ...(e?.parent_versions || {}) };
+    candidateCursor = repaymentsCursor = null;
+    candidateVersion++;
+    repaymentsVersion++;
+    $("candidate-query").value = "";
+    $("candidate-list").replaceChildren();
+    $("repayment-list").replaceChildren();
+  }
   $("edit-title").textContent = e ? "Transaction details" : "Add transaction";
   $("save").textContent = e ? "Save changes" : "Add transaction";
   $("edit-summary").textContent = !e
@@ -636,13 +1153,18 @@ function openEditor(e = null) {
     edit.elements.card_suffix.value = e?.card_suffix || "";
     date.value = localInput(e?.occurred_at || new Date().toISOString());
   }
+  updateReimbursementForm();
   editorBaseline = editorValues();
   $("editor").showModal();
+  if (edit.elements.payer_name && e && !e.review_reason) {
+    if (isReimbursement(e)) loadCandidates();
+    else if (e.direction === "expense") loadRepayments();
+  }
   editorState();
 }
 $("add-transaction").onclick = () => openEditor();
 $("cancel").onclick = closeEditor;
-async function save(dismiss = false) {
+async function save(dismiss = false, pending = false) {
   if ((!selected && !creationId) || $("save").disabled) return;
   const creating = !selected;
   const manual = creating || selected.source === "manual";
@@ -664,6 +1186,32 @@ async function save(dismiss = false) {
     );
     body.local_time = apiLocalTime(edit.elements.local_time.value);
     if (creating) body.id = creationId;
+  }
+  if (!pendingSubmission && reimbursementMode()) {
+    const payer = edit.elements.payer_name.value.trim();
+    const parentId = pending
+      ? null
+      : edit.elements.reimbursement_expense_id.value || null;
+    if (parentId && !payer) {
+      $("form-error").textContent =
+        "Enter From before linking this reimbursement.";
+      return;
+    }
+    if ([...payer].length > 100) {
+      $("form-error").textContent = "From must be at most 100 characters.";
+      return;
+    }
+    body.payer_name = payer;
+    body.reimbursement_expense_id = parentId;
+    const ids = new Set(
+      [selected?.reimbursement_expense_id, parentId].filter(Boolean),
+    );
+    if (ids.size)
+      body.parent_versions = Object.fromEntries(
+        [...ids].map((id) => [id, reimbursementParentVersions[id]]),
+      );
+  } else if (!pendingSubmission && selected?.reimbursement_expense_id) {
+    body.parent_versions = { ...reimbursementParentVersions };
   }
   if (dismiss) body.dismiss = true;
   else if (selected?.review_reason)
@@ -702,6 +1250,13 @@ async function save(dismiss = false) {
     saving = false;
     editorBaseline = editorValues();
     $("editor").close();
+    if (reimbursementReturn) restoreReimbursementDraft(persisted);
+    else if (
+      edit.elements.payer_name &&
+      isReimbursement(persisted) &&
+      !persisted.reimbursement_expense_id
+    )
+      openEditor(persisted);
     telegram.update();
     $("toast").textContent = dismissed
       ? "Review dismissed"
@@ -711,7 +1266,11 @@ async function save(dismiss = false) {
     await load();
     if (location.hash === "#month") await loadMonth();
   } catch (e) {
-    if (e.status === 409) {
+    if (e.code === "refresh_required") {
+      formConflict = true;
+      $("form-error").textContent =
+        "Refresh the tracker to continue. Your draft remains in this open form.";
+    } else if (e.status === 409) {
       // A replay carries the old version, so a 409 may be our own earlier save.
       const retried = Boolean(pendingSubmission);
       formConflict = true;
@@ -926,7 +1485,7 @@ function renderMonth() {
   box.replaceChildren();
   const block = node("div");
   block.append(node("p", "Spent in " + title.split(" ")[0], "total-label"));
-  if (!data || BigInt(data.spending_minor) === 0n) {
+  if (!data || (!data.days?.length && BigInt(data.spending_minor) === 0n)) {
     block.append(node("p", "Nothing yet", "figure spent none"));
   } else {
     block.append(figure(amount(data.spending_minor, cur), cur, "spent"));
@@ -970,7 +1529,12 @@ function renderMonth() {
     const legend = node("dl", undefined, "legend");
     for (const [cls, name, value] of [
       ["in", "Came in", data.income_minor],
-      ["net", "Net cash flow", data.net_minor],
+      ["net", "Income minus spending", data.net_minor],
+      [
+        "pending",
+        "Pending reimbursements",
+        data.pending_reimbursement_minor ?? "0",
+      ],
     ]) {
       const item = node("div", undefined, cls);
       item.append(node("dt", name), node("dd", amount(value, cur), "figure"));
@@ -1016,7 +1580,7 @@ function renderMonth() {
       state = "spent";
       // sqrt keeps one large day from washing out the rest of the month.
       const ratio = Math.sqrt(
-        Number((BigInt(d.spending_minor) * 10000n) / max) / 10000,
+        max ? Number((BigInt(d.spending_minor) * 10000n) / max) / 10000 : 0,
       );
       cell.dataset.level = String(Math.max(1, Math.ceil(ratio * 4)));
     }
@@ -1128,8 +1692,8 @@ function renderMonth() {
     );
     cats.append(empty);
   }
-  const top = list.length ? BigInt(list[0].spending_minor) : 1n,
-    total = data ? BigInt(data.spending_minor) : 1n;
+  const top = list.length ? BigInt(list[0].spending_minor) || 1n : 1n,
+    total = data ? BigInt(data.spending_minor) || 1n : 1n;
   const strip = $("cat-strip"),
     note = $("cat-note");
   strip.replaceChildren();

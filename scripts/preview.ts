@@ -2,8 +2,9 @@
 import { createServer } from "node:http";
 import { setup, message, now, fixture } from "../tests/helpers";
 import { parseEmail } from "../backend/src/parser";
-import { saveMessage, sql } from "../backend/src/store";
+import { getExpense, saveManual, saveMessage, sql } from "../backend/src/store";
 import { api } from "../backend/src/api";
+import { manualDetails } from "../backend/src/manual";
 import site from "../website/dist/server/index.js";
 const { env } = setup();
 const samples = [
@@ -111,6 +112,113 @@ await sql(
   now,
   now,
 ).run();
+// Stable IDs make the dinner and zero-cost scenarios addressable through the
+// existing read-only ?transaction= selector. All people and transactions are fake.
+export const previewReimbursementIds = {
+  dinner: "10000000-0000-4000-8000-000000000001",
+  olderDinner: "10000000-0000-4000-8000-000000000002",
+  zeroCost: "10000000-0000-4000-8000-000000000003",
+  ali: "20000000-0000-4000-8000-000000000001",
+  sara: "20000000-0000-4000-8000-000000000002",
+  pending: "20000000-0000-4000-8000-000000000003",
+  fullRepayment: "20000000-0000-4000-8000-000000000004",
+};
+const previewNow = Date.now();
+for (const [id, merchant, amount, local_time, description] of [
+  [
+    previewReimbursementIds.dinner,
+    "SYNTHETIC DINNER",
+    "300000.00",
+    "20.09.26 19:00",
+    "Dinner for three",
+  ],
+  [
+    previewReimbursementIds.olderDinner,
+    "SYNTHETIC DINNER",
+    "400000.00",
+    "15.09.26 19:00",
+    "Older dinner — search distinguishes this payment",
+  ],
+  [
+    previewReimbursementIds.zeroCost,
+    "SYNTHETIC SHARED TICKETS",
+    "90000.00",
+    "21.09.26 18:00",
+    "Fully repaid; keep this expense visible at zero",
+  ],
+]) {
+  await saveManual(
+    env,
+    id,
+    manualDetails(
+      {
+        merchant,
+        amount,
+        local_time,
+        description,
+        currency: "UZS",
+        card_suffix: "",
+        direction: "expense",
+        category: "Food",
+      },
+      previewNow,
+    ),
+    previewNow,
+  );
+}
+for (const [id, payer_name, amount, parentId, description] of [
+  [
+    previewReimbursementIds.ali,
+    "Ali (synthetic)",
+    "100000.00",
+    previewReimbursementIds.dinner,
+    "",
+  ],
+  [
+    previewReimbursementIds.sara,
+    "Sara (synthetic)",
+    "100000.00",
+    previewReimbursementIds.dinner,
+    "Dinner share",
+  ],
+  [
+    previewReimbursementIds.pending,
+    "",
+    "100000.00",
+    null,
+    "Pending: enter From and choose an expense",
+  ],
+  [
+    previewReimbursementIds.fullRepayment,
+    "<Synthetic payer>",
+    "90000.00",
+    previewReimbursementIds.zeroCost,
+    "<b>This note is plain text</b>",
+  ],
+] as const) {
+  const target = parentId ? await getExpense(env, parentId) : null;
+  await saveManual(
+    env,
+    id,
+    manualDetails(
+      {
+        merchant: "SYNTHETIC CASH REPAYMENT",
+        amount,
+        local_time: "02.10.26 19:00",
+        description,
+        currency: "UZS",
+        card_suffix: "",
+        direction: "income",
+        income_category: "Reimbursement",
+        payer_name,
+        reimbursement_expense_id: parentId,
+      },
+      previewNow,
+    ),
+    previewNow,
+    target ? { [target.id]: target.version } : undefined,
+  );
+}
 globalThis.fetch = async (input, init) => {
   const r = new Request(input, init);
   if (new URL(r.url).hostname !== "backend.example")
@@ -133,7 +241,19 @@ createServer(async (req, res) => {
       BACKEND_TOKEN: env.BACKEND_TOKEN,
     });
     res.writeHead(response.status, Object.fromEntries(response.headers));
-    res.end(await response.text());
+    let html = await response.text();
+    if (response.headers.get("content-type")?.includes("text/html")) {
+      // Local visual checks only; never enters the deployed website artifact.
+      const theme = process.env.PREVIEW_THEME;
+      if (theme === "light" || theme === "dark")
+        html = html.replace("<html", `<html data-telegram-theme="${theme}"`);
+      if (process.env.PREVIEW_NO_SDK === "1")
+        html = html.replace(
+          /<script\s+id="telegram-sdk"[\s\S]*?<\/script>/,
+          "",
+        );
+    }
+    res.end(html);
   } catch {
     res.writeHead(500);
     res.end("Preview failed");

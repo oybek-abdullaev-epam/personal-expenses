@@ -845,6 +845,17 @@
         border-radius: 12px;
         font-size: 14px;
       }
+      .reimbursement-panel { display: grid; gap: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
+      .reimbursement-panel[hidden], #candidate-controls[hidden] { display: none; }
+      .reimbursement-panel p, .reimbursement-panel h3 { margin: 0; }
+      #candidate-controls { display: grid; gap: 12px; }
+      .cost-preview { background: var(--sunk); border-radius: 12px; padding: 12px; overflow-wrap: anywhere; }
+      .cost-preview p { margin-top: 8px; }
+      .repayment-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+      .repayment-list li { border-bottom: 1px solid var(--line); padding-bottom: 12px; overflow-wrap: anywhere; }
+      .candidate { display: grid; gap: 5px; width: 100%; white-space: normal; text-align: left; font-weight: 400; }
+      .candidate span { font-size: 13px; color: var(--ink-2); }
+      .tx .sub { overflow-wrap: anywhere; }
       #form-error {
         color: var(--anor);
         font-size: 14px;
@@ -1649,7 +1660,7 @@
                   ><span class="sr">Search</span
                   ><input
                     name="q"
-                    placeholder="Merchant or description"
+                    placeholder="Merchant, description or payer"
                     type="search"
                     enterkeyhint="search"
                 /></label>
@@ -1722,8 +1733,9 @@
         <p class="month-note">
           Days are Tashkent calendar days. Backdated manual entries are included
           in totals; days before email tracking may be incomplete and are
-          excluded from the daily average. Review items are excluded. Net cash
-          flow is income minus spending; repayments are included in income.
+          excluded from the daily average. Review items are excluded.
+          Reimbursements reduce spending on the original expense date and are
+          excluded from income. Pending reimbursements are shown separately.
         </p>
       </aside>
       <div class="month-main">
@@ -1818,12 +1830,87 @@
             <option value="">Choose a category</option>
           </select></label
         ><label
-          >Description<textarea
+          ><span id="description-label">Description</span
+          ><textarea
             name="description"
             maxlength="500"
             placeholder="What was this transaction for?"
           ></textarea>
         </label>
+        <section
+          id="reimbursement-fields"
+          class="reimbursement-panel"
+          aria-label="Reimbursement"
+          hidden
+        >
+          <label
+            >From <span class="sub">(required to link)</span
+            ><input
+              name="payer_name"
+              autocomplete="off"
+              placeholder="Name or nickname"
+          /></label>
+          <input name="reimbursement_expense_id" type="hidden" />
+          <div
+            id="reimbursement-preview"
+            class="cost-preview"
+            aria-live="polite"
+          ></div>
+          <p id="candidate-first">
+            Save this reimbursement pending first, then choose an expense. From
+            and note are optional while pending.
+          </p>
+          <div id="candidate-controls">
+            <label
+              >Find the original expense<input
+                id="candidate-query"
+                type="search"
+                maxlength="200"
+                placeholder="Merchant or description"
+            /></label>
+            <div class="confirm-buttons">
+              <button type="button" class="btn" id="candidate-search">
+                Search
+              </button>
+              <button type="button" class="btn" id="candidate-refresh">
+                Recent expenses
+              </button>
+              <button type="button" class="btn" id="clear-parent">
+                Clear selection
+              </button>
+            </div>
+            <p id="candidate-status" role="status"></p>
+            <ul id="candidate-list" class="repayment-list"></ul>
+            <button type="button" class="btn" id="candidate-more" hidden>
+              More eligible expenses
+            </button>
+            <button type="button" class="btn" id="add-parent">
+              Add missing original expense
+            </button>
+          </div>
+        </section>
+        <section
+          id="expense-repayments"
+          class="reimbursement-panel"
+          aria-label="Payment and repayments"
+          hidden
+        >
+          <h3>Payment and repayments</h3>
+          <p id="repayment-summary" class="cost-preview"></p>
+          <p id="repayment-status" role="status"></p>
+          <ul id="repayment-list" class="repayment-list"></ul>
+          <div class="confirm-buttons">
+            <button type="button" class="btn" id="repayment-refresh">
+              Refresh repayments
+            </button>
+            <button type="button" class="btn" id="repayment-more" hidden>
+              More repayments
+            </button>
+          </div>
+        </section>
+        <button type="button" class="btn" id="parent-return" hidden>
+          Return to reimbursement
+        </button>
         <div id="form-error" role="alert"></div>
         <button type="button" class="btn" id="review-latest" hidden>
           Review latest
@@ -1848,6 +1935,8 @@
           <button type="button" id="dismiss" class="btn danger" hidden>
             Dismiss review</button
           ><button type="button" class="btn" id="cancel">Cancel</button
+          ><button type="button" class="btn" id="save-pending" hidden>
+            Unlink and save pending</button
           ><button type="submit" class="btn primary" id="save">
             Save changes
           </button>

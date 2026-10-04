@@ -1,6 +1,6 @@
 # ER-04: Shared picker, payer entry, and expense details
 
-- **Status:** Backlog
+- **Status:** In progress — implementation/local verification complete; Telegram Web pending
 - **Proposal:** [Expense reimbursements](../PLAN.md)
 - **Depends on:** [ER-03](ER-03-reporting.md)
 - **Risks:** [R05](../RISKS.md#r05), [R06](../RISKS.md#r06)
@@ -35,14 +35,14 @@ Shared browser/Mini App editor and routing, ledger rows/details, filters, Month 
 ## Acceptance checks
 
 - [ ] The full dinner flow works in the agreed browser/Telegram client matrix, with required From and optional note clearly distinguished.
-- [ ] Empty and whitespace-only names cannot complete linking; optional notes do not block completion; pending records show what is missing.
-- [ ] Similar and older expenses can be distinguished and found outside current pages/filters; stale capacity receives an actionable server error without applying a guessed alternative.
-- [ ] Linking, payer correction, relinking, unlinking, and full reimbursement update the ledger/details/totals consistently, including zero-cost expenses.
-- [ ] Manual parent creation returns to the original reimbursement without duplicate submissions or losing entered name/note during the in-app flow.
-- [ ] Back/cancel, narrow layouts, supported themes, unavailable SDK, interrupted requests, ambiguous responses, and conflicts preserve correct navigation and recovery.
-- [ ] Synthetic markup-like payer names render literally; no bank data, names, or draft inputs are added to logs or persistent browser storage by default.
+- [x] Empty and whitespace-only names cannot complete linking; optional notes do not block completion; pending records show what is missing.
+- [x] Similar and older expenses can be distinguished and found outside current pages/filters; stale capacity receives an actionable server error without applying a guessed alternative.
+- [x] Linking, payer correction, relinking, unlinking, and full reimbursement update the ledger/details/totals consistently, including zero-cost expenses.
+- [x] Manual parent creation returns to the original reimbursement without duplicate submissions or losing entered name/note during the in-app flow.
+- [x] Back/cancel, narrow layouts, supported themes, unavailable SDK, interrupted requests, ambiguous responses, and conflicts preserve correct navigation and recovery.
+- [x] Synthetic markup-like payer names render literally; no bank data, names, or draft inputs are added to logs or persistent browser storage by default.
 - [ ] Required visual/manual evidence and frontend/build checks are recorded, with native-client deferrals identified honestly.
 
 ## Completion evidence
 
-Not started. Record screenshots or other synthetic evidence, tested client/browser capabilities, commands/results, and remaining limitations.
+[Local browser and automated evidence](../../../docs/verification/expense-reimbursements/ER-04.md). Desktop/narrow browser, dark theme, SDK fallback, drafts and conflicts verified with synthetic data. Required actual Telegram Web evidence remains pending; native clients deferred. Commit and push status is in the orchestration ledger.
