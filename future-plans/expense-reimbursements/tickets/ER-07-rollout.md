@@ -1,6 +1,6 @@
 # ER-07: Separately authorized production rollout
 
-- **Status:** Backlog
+- **Status:** Blocked — separate production/live-test authorization required
 - **Proposal:** [Expense reimbursements](../PLAN.md)
 - **Depends on:** [ER-06](ER-06-validation.md)
 - **Risks:** [R04](../RISKS.md#r04)

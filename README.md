@@ -59,3 +59,9 @@ The agreed scope is in [PLAN.md](PLAN.md), and the project rules are in [AGENTS.
 Deployed on 3 October 2026. Use **Open tracker** in the bot menu to open the shared dashboard directly in Telegram. New transaction messages and receipts include **View transaction**; the ordinary browser dashboard stays available. Theme, viewport, Back navigation, inline draft protection, exact uncertain-save retries, and explicit conflict recovery are supported.
 
 Telegram Web and ordinary-browser checks passed, alongside 88 automated tests and independent review. Test data/messages were removed and existing history preserved. Native clients, naturally arriving receipts, and the real 21:00 summary remain deferred. See [completed tickets](future-plans/telegram-mini-app/TICKETS.md), [rollout evidence](docs/verification/telegram-mini-app/MA-08.md), and [remaining checks](next_steps.md).
+
+## Expense reimbursement candidate (FP-003)
+
+Implemented on `codex/expense-reimbursements`; **not deployed**. A named reimbursement links to one earlier expense and reduces that expense's personal spending at its original date/category. Linked repayments disappear from the default ledger; the Reimbursement filter exposes all repayments. Pending amounts are separate from income, and fully repaid expenses stay visible at zero. Browser and Mini App share the From/name picker, repayment details, conflict recovery, and missing-expense creation flow. Email reimbursement completion queues its first receipt; manual entries remain message-free.
+
+The branch requires migration 0005 and coordinated frontend/backend activation with a browser contract header. See the [release candidate evidence and remaining gates](docs/verification/expense-reimbursements/ER-06.md) and [non-destructive release procedure](docs/deployment.md#fp-003-reimbursement-release-candidate-not-deployed). Actual Telegram Web checks and production rollout still require ER-07 authorization.

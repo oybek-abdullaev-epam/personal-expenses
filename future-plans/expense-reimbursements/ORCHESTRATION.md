@@ -8,8 +8,8 @@ Authorized 3 October 2026: ER-01–06 implementation, synthetic/local verificati
 | ER-02 | ER-01 | Persistence agent | Done | docs/verification/expense-reimbursements/ER-02.md | 7ffac8d; remote head confirmed |
 | ER-03 | ER-02 | Reporting agent | Done | docs/verification/expense-reimbursements/ER-03.md | be2d32d; remote head confirmed |
 | ER-04 | ER-03 | UI agent | Locally verified; Telegram Web pending | docs/verification/expense-reimbursements/ER-04.md | ef94d67; remote head confirmed |
-| ER-05 | ER-04 | Orchestrator | Locally verified | docs/verification/expense-reimbursements/ER-05.md | ER-05 commit pending |
-| ER-06 | ER-05 | Orchestrator + independent reviewer | Locally verified; Telegram Web pending | docs/verification/expense-reimbursements/ER-06.md | ER-06 commit pending |
+| ER-05 | ER-04 | Orchestrator | Done (mocked acceptance) | docs/verification/expense-reimbursements/ER-05.md | c7b3a09; remote head confirmed |
+| ER-06 | ER-05 | Orchestrator + independent reviewer | Locally verified; Telegram Web pending | docs/verification/expense-reimbursements/ER-06.md | ER-06 candidate commit; final remote confirmation follows |
 | ER-07 | ER-06 + authorization | Orchestrator | Blocked: authorization | No live mutations performed | Pending |
 
 ## Resume notes
@@ -27,3 +27,5 @@ ER-01 commit 097aede establishes the shared interface. ER-02 persistence owns ba
 All bounded implementation work has been integrated and independent review findings closed. Final integrated tests/build and local D1 batch rollback passed; actual desktop/narrow browser evidence includes light/dark, no SDK, drafts and stale saves. See per-milestone evidence. ER-04's remaining real-client prerequisite is explicitly carried into ER-06/ER-07; it does not block independent mocked Telegram or local recovery verification. No milestone claims actual Telegram Web acceptance from mocks.
 
 Required hosted/client acceptance remains pending ER-07 authorization. No production mutation, bot message, default-branch merge or deployment-history entry occurred. The dedicated pause Worker preserves processing state and is separate from mailbox reset. Recovery after saved links uses reimbursement-aware code or pause only.
+
+5 October continuation: ER-04 `ef94d67` and ER-05 `c7b3a09` pushed and confirmed remotely. Read-only Cloudflare deployment and Vercel project access succeeded. No deployment or live test mutation was made.

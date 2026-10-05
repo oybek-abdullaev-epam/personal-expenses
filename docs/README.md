@@ -1,6 +1,6 @@
 # Developer documentation
 
-Start here if you are new to this codebase. It is a small single-owner app, about 1,600 lines of backend TypeScript and 2,500 lines of dashboard HTML and JS, but it has quite a few moving parts: Gmail, a Cloudflare Worker with a database and a cron, a Telegram bot, and a Vercel website.
+Start here if you are new to this codebase. It is a single-owner app with several connected parts: Gmail, a Cloudflare Worker with a database and a cron, a Telegram bot, and a Vercel website.
 
 ## In one paragraph
 
@@ -46,3 +46,5 @@ Mini App deployment and browser verification are recorded in [MA-08 evidence](ve
 ## Keeping these docs true
 
 If you change behaviour, update the page that describes it in the same change. Deploy records go at the end of [history.md](history.md). The other pages describe how the system works *now*, not a timeline.
+
+FP-003 reimbursement implementation is a non-deployed candidate. Start with the [verification and release checklist](verification/expense-reimbursements/ER-06.md); current code contracts are documented in the linked schema/API/frontend/lifecycle pages. Actual Telegram Web acceptance remains pending.

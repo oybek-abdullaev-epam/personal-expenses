@@ -6,7 +6,7 @@
 - **Related work:** [Telegram Mini App (FP-002)](../telegram-mini-app/PLAN.md) · [Private multi-user pilot (FP-001)](../multi-user-pilot/PLAN.md)
 - **Planning material:** [Tickets and dependency graph](TICKETS.md) · [Risk register](RISKS.md) · [Idea index](../README.md)
 
-The owner authorized implementation through ER-06 on 3 October 2026. This specification records the accepted experience; production deployment remains separately gated by ER-07. The root [PLAN.md](../../PLAN.md) remains the current implementation agreement. Reimbursements currently count as income without reducing spending; that remains true until this proposal is separately scheduled, implemented, and deployed.
+The owner authorized implementation through ER-06 on 3 October 2026. This specification records the accepted experience; production deployment remains separately gated by ER-07. The root [PLAN.md](../../PLAN.md) remains the current implementation agreement. Reimbursements currently count as income without reducing spending; that remains production behavior until the implemented candidate is deployed under ER-07 authorization.
 
 ## Problem and audience
 

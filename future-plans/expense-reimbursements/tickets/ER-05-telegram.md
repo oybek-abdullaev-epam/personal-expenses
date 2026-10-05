@@ -1,6 +1,6 @@
 # ER-05: Telegram linking, completion, and daily summaries
 
-- **Status:** Verified locally — commit/push recorded in orchestration ledger
+- **Status:** Done — mocked acceptance; c7b3a09 pushed and remote confirmed
 - **Proposal:** [Expense reimbursements](../PLAN.md)
 - **Depends on:** [ER-04](ER-04-interface.md)
 - **Risks:** [R01](../RISKS.md#r01), [R03](../RISKS.md#r03)

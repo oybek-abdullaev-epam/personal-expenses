@@ -1,6 +1,6 @@
 # ER-06: Integrated validation and recovery rehearsal
 
-- **Status:** Backlog
+- **Status:** In progress — local candidate verified; actual Telegram Web pending
 - **Proposal:** [Expense reimbursements](../PLAN.md)
 - **Depends on:** [ER-05](ER-05-telegram.md)
 - **Risks:** [R01](../RISKS.md#r01), [R02](../RISKS.md#r02), [R03](../RISKS.md#r03), [R04](../RISKS.md#r04), [R05](../RISKS.md#r05), [R06](../RISKS.md#r06)
@@ -33,14 +33,14 @@ Integration tests, migration fixtures, synthetic previews, verification evidence
 
 ## Acceptance checks
 
-- [ ] All expected-value scenarios agree across surfaces, including parent-date deductions and reimbursement exclusion from income.
-- [ ] Migration and recovery preserve every pre-existing synthetic record, source identity, activation/cursor, outbox job, and pending reply association.
-- [ ] Failure/concurrency/retry cases cannot over-reimburse, double-allocate, lose links, or bypass required-name completion.
+- [x] All expected-value scenarios agree across surfaces, including parent-date deductions and reimbursement exclusion from income.
+- [x] Migration and recovery preserve every pre-existing synthetic record, source identity, activation/cursor, outbox job, and pending reply association.
+- [x] Failure/concurrency/retry cases cannot over-reimburse, double-allocate, lose links, or bypass required-name completion.
 - [ ] Required UI and Telegram/browser checks have actual evidence; unavailable clients or live observations are listed as deferred rather than passed.
-- [ ] Direct unauthorized backend calls, admin proxy access, invalid webhook/chat interactions, cross-origin writes, and applicable cross-owner access remain rejected.
-- [ ] npm test and npm run build pass; unresolved correctness or data-preservation issues block rollout.
-- [ ] A concrete compatible deploy/recovery sequence and release checklist are documented without executing production changes.
+- [x] Direct unauthorized backend calls, admin proxy access, invalid webhook/chat interactions, cross-origin writes, and applicable cross-owner access remain rejected.
+- [x] npm test and npm run build pass; unresolved correctness or data-preservation issues block rollout.
+- [x] A concrete compatible deploy/recovery sequence and release checklist are documented without executing production changes.
 
 ## Completion evidence
 
-Not started. Record commands/results, synthetic scenario evidence, client coverage, migration/recovery outcomes, and unresolved release blockers or deferred observations.
+[Integrated evidence and concrete release checklist](../../../docs/verification/expense-reimbursements/ER-06.md). Production deployment and live test scope remain separately gated; no changes were deployed.

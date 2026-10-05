@@ -110,3 +110,9 @@ Make sure there are tests for each of these:
 ## Formatting
 
 Prettier is installed (`npx prettier --write <files>`). Match the style of the code around your change. The code is compact, with few comments that explain *why* rather than *what*.
+
+## FP-003 verification
+
+Run `npm test` followed by `npm run build`. Reimbursement tests cover storage/guards, shared reporting, client recovery, Telegram receipts and populated migration/recovery. `npx wrangler deploy --dry-run --config backend/wrangler.release-pause.toml` separately validates the non-destructive pause entrypoint without publishing it. Use synthetic data only.
+
+Local D1 migration check: `npx wrangler d1 migrations apply expenses --local --persist-to /tmp/fp003-local-d1 --config backend/wrangler.toml`. Do not substitute `--remote` without ER-07 authorization. The [candidate evidence](verification/expense-reimbursements/ER-06.md) separates SQLite tests, local D1, actual browser observations and outstanding Telegram Web verification. Preview fixtures include pending, partial and fully repaid dinner examples; `PREVIEW_THEME=dark PREVIEW_NO_SDK=1 npm run preview` supports repeatable dark/fallback screenshots without changing product files.

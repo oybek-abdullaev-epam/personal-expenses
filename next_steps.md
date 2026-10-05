@@ -10,3 +10,9 @@ The tracker is deployed and active (activation boundary `2026-09-24T16:19:45.972
 The launch checklist and progress notes that used to be in this file are in [docs/history.md](docs/history.md#launch-checklist-previously-in-next_stepsmd-24-september-2026). The full acceptance procedure is in [docs/SETUP.md §6](docs/SETUP.md#6-activate-and-complete-the-live-acceptance-check).
 
 - [ ] Optional native Telegram iOS/Android/Desktop verification, including native keyboard and resume behavior. Deferred by the owner; browser widths do not establish native-client support.
+
+## FP-003 reimbursement release gates
+
+- [ ] Authorize ER-07 production activation and a precise scope for disposable synthetic live records/messages after reviewing the [candidate and recovery checklist](docs/verification/expense-reimbursements/ER-06.md). Prior FP-002 live-test permission does not authorize FP-003 writes.
+- [ ] Run actual Telegram Web reimbursement picker/completion/navigation checks against the hosted compatible candidate, recording the observed client and capabilities. Local browser and mocked SDK evidence do not satisfy this gate.
+- [ ] Execute the coordinated pause/drain/migrate/frontend/backend/resume procedure, verify hosted access and preserved integration state, clean up only tracked synthetic artifacts, and record actual deployed versions. No deployment has occurred for FP-003.
