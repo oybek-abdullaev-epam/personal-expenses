@@ -9,7 +9,7 @@ Authorized 3 October 2026: ER-01–06 implementation, synthetic/local verificati
 | ER-03 | ER-02 | Reporting agent | Done | docs/verification/expense-reimbursements/ER-03.md | be2d32d; remote head confirmed |
 | ER-04 | ER-03 | UI agent | Locally verified; Telegram Web pending | docs/verification/expense-reimbursements/ER-04.md | ef94d67; remote head confirmed |
 | ER-05 | ER-04 | Orchestrator | Done (mocked acceptance) | docs/verification/expense-reimbursements/ER-05.md | c7b3a09; remote head confirmed |
-| ER-06 | ER-05 | Orchestrator + independent reviewer | Locally verified; Telegram Web pending | docs/verification/expense-reimbursements/ER-06.md | ER-06 candidate commit; final remote confirmation follows |
+| ER-06 | ER-05 | Orchestrator + independent reviewer | Locally verified; Telegram Web pending | docs/verification/expense-reimbursements/ER-06.md | 0d872bd; remote head confirmed |
 | ER-07 | ER-06 + authorization | Orchestrator | Blocked: authorization | No live mutations performed | Pending |
 
 ## Resume notes
@@ -29,3 +29,5 @@ All bounded implementation work has been integrated and independent review findi
 Required hosted/client acceptance remains pending ER-07 authorization. No production mutation, bot message, default-branch merge or deployment-history entry occurred. The dedicated pause Worker preserves processing state and is separate from mailbox reset. Recovery after saved links uses reimbursement-aware code or pause only.
 
 5 October continuation: ER-04 `ef94d67` and ER-05 `c7b3a09` pushed and confirmed remotely. Read-only Cloudflare deployment and Vercel project access succeeded. No deployment or live test mutation was made.
+
+Candidate code commit `0d872bd7837d78b6a9902c0ee8067334b03641e7` was pushed and independently read back with `git ls-remote` on 5 October. All milestone pushes are confirmed. The subsequent documentation-only checkpoint records that confirmation. Working tree was clean after the candidate push; remaining work is the explicitly gated hosted/Telegram Web acceptance and ER-07 execution.
