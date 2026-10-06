@@ -6,6 +6,7 @@ The tracker is deployed and active (activation boundary `2026-09-24T16:19:45.972
 - [ ] With two transactions pending, replying to their Telegram prompts in reverse order attaches each description to the right transaction.
 - [ ] Observe the 21:00 Tashkent daily spending summary, including outstanding details and the empty-day skip rule. Deferred for the browser-only Mini App release by the owner.
 - [ ] A live income (`Perevod na kartu`) transaction completes its category and description through Telegram.
+- [ ] A fresh `Popolnenie scheta` (account top-up) email received after the 6 October 2026 fix is parsed automatically as income, not as a review item.
 
 The launch checklist and progress notes that used to be in this file are in [docs/history.md](docs/history.md#launch-checklist-previously-in-next_stepsmd-24-september-2026). The full acceptance procedure is in [docs/SETUP.md §6](docs/SETUP.md#6-activate-and-complete-the-live-acceptance-check).
 

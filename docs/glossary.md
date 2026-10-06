@@ -8,7 +8,7 @@ These are the words used in the code, the UI and these docs. The product terms c
 |---|---|
 | **Transaction** | One incoming or outgoing card movement reported by UZCARD, or entered by hand. The Uzbek and Russian copies inside one email describe the **same** transaction. In the database it is a row in `expenses`, a name kept from before income was supported. |
 | **Spending** | The sum of outgoing transactions (`direction = 'expense'`), including card-to-card transfers out (`Platezh`). In API totals it appears as `amount_minor` or `spending_minor`. |
-| **Income** | Incoming money (`direction = 'income'`): salary, reimbursements, other incoming transfers (`Perevod na kartu`). |
+| **Income** | Incoming money (`direction = 'income'`): salary, reimbursements, other incoming transfers (`Perevod na kartu`) and account top-ups (`Popolnenie scheta`). |
 | **Salary** | Income from an employer. Each instalment is a separate transaction. |
 | **Reimbursement** | Money received back for someone else's share of a bill. It counts as income. It does **not** reduce spending. |
 | **Net cash flow** | Income minus spending, per currency, for the selected rows. It is **not** a bank balance, and balances are never stored. |
@@ -27,6 +27,7 @@ These are the words used in the code, the UI and these docs. The product terms c
 | `Pokupka` | Purchase | Spending |
 | `Platezh` | Outgoing card-to-card transfer | Spending |
 | `Perevod na kartu` | Transfer to the card (incoming) | Income |
+| `Popolnenie scheta` | Account top-up (incoming) | Income |
 | anything else | – | Review item (`unsupported_operation`) |
 
 `karta ***1234` is the card suffix, `summa` is the amount, and `balans` is the balance, which is thrown away.

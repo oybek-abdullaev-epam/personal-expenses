@@ -28,7 +28,7 @@ Track only emails received after activation. At **21:00 Tashkent time**, send on
 - Parse the supplied format deterministically: operation, merchant, local transaction time, card suffix, amount, and currency. Interpret transaction times as `Asia/Tashkent`; store monetary amounts as integer minor units.
 - Treat the Uzbek and Russian copies within one email as one transaction. Use Gmail message IDs to prevent repeated imports across polling runs.
 - Do not store account balances or full email bodies. Store the source message ID for troubleshooting.
-- Count outgoing card-to-card transfers reported as `Platezh` as expenses, as confirmed by the owner on 24 September 2026. `Pokupka` purchases are expenses; accept receipts with or without the comma between merchant/date, after the time, and before the balance. Incoming `Perevod na kartu` transactions are recorded as income; unknown operation labels remain review items.
+- Count outgoing card-to-card transfers reported as `Platezh` as expenses, as confirmed by the owner on 24 September 2026. `Pokupka` purchases are expenses; accept receipts with or without the comma between merchant/date, after the time, and before the balance. Incoming `Perevod na kartu` transactions are recorded as income. Account top-ups reported as `Popolnenie scheta` are also income, as confirmed by the owner on 6 October 2026 (an advance salary payment); unknown operation labels remain review items.
 - Unexpected formats or operation types become review items rather than guessed expenses. Exclude unresolved items from totals and notify the user.
 - Persist polling progress, paginate results, and catch up after outages without importing anything before activation.
 

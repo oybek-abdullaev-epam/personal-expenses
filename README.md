@@ -8,7 +8,7 @@ Personal UZCARD income and spending: Gmail → Telegram → dashboard.
 
 - Every five minutes, it reads new UZCARD notification emails (`noreply@info.uzcard.uz`, subject `UZCARD INFO`) from a dedicated Gmail inbox with read-only access. It only does this after a one-time activation, and it never imports earlier emails.
 - It saves one exact transaction per email:
-  - Spending is `oplata`, `E-Com oplata`, `Pokupka` or `Platezh`. Income is `Perevod na kartu`.
+  - Spending is `oplata`, `E-Com oplata`, `Pokupka` or `Platezh`. Income is `Perevod na kartu` or `Popolnenie scheta`.
   - Unknown or conflicting formats become **review items**, which are excluded from totals.
   - Balances and full emails are never stored.
 - A Telegram bot asks the owner for a category (buttons) and a description (a reply to that transaction's prompt). It sends a receipt and tidies the chat. The daily summary is deployed: around **21:00 Tashkent**, it shows today’s spending so far and expense count separately per currency, any transactions still needing details across all dates, and the dashboard link. It includes email and manual spending; income, dismissed records, and unresolved reviews are excluded from spending. Days with neither spending nor outstanding details are skipped. Totals are refreshed on delivery/retry; undelivered summaries expire after the local date changes. An ambiguous Telegram timeout may repeat a message.

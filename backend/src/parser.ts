@@ -88,6 +88,7 @@ export function parseEmail(message: GmailMessage): Parsed {
           "pokupka",
           "platezh",
           "perevod na kartu",
+          "popolnenie scheta",
         ].includes(m[1].trim().toLowerCase())
       )
         throw new Error("unsupported_operation");
@@ -95,10 +96,11 @@ export function parseEmail(message: GmailMessage): Parsed {
         throw new Error("unsupported_currency");
       if (m[2].length > 250) throw new Error("unrecognized_format");
       return {
-        direction:
-          m[1].trim().toLowerCase() === "perevod na kartu"
-            ? ("income" as const)
-            : ("expense" as const),
+        direction: ["perevod na kartu", "popolnenie scheta"].includes(
+          m[1].trim().toLowerCase(),
+        )
+          ? ("income" as const)
+          : ("expense" as const),
         merchant: m[2].trim(),
         occurred_at: localDateTime(m[3]),
         card_suffix: m[4],

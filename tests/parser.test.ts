@@ -117,7 +117,7 @@ test("Platezh outgoing transfers parse as expenses and discard balances", async 
   );
   assert(
     "review_reason" in
-      parseEmail(message("incoming", body.replaceAll("Platezh", "Popolnenie"))),
+      parseEmail(message("unknown", body.replaceAll("Platezh", "Cashback"))),
   );
 });
 
@@ -144,6 +144,33 @@ test("incoming transfer has explicit income direction in text and HTML", async (
     parseEmail(
       message("conflict", body.replace("Perevod na kartu", "Platezh")),
     ),
+    { review_reason: "conflicting_transactions" },
+  );
+});
+
+test("Popolnenie scheta account top-ups parse as income in text and HTML", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const body = (
+    await readFile(
+      new URL("./fixtures/uzcard-income.txt", import.meta.url),
+      "utf8",
+    )
+  ).replaceAll("Perevod na kartu", "Popolnenie scheta");
+  const expected = {
+    direction: "income",
+    merchant: "SAMPLE SENDER, UZ",
+    occurred_at: "2026-09-22T14:44:00.000Z",
+    card_suffix: "1234",
+    amount_minor: 1250000,
+    currency: "UZS",
+  };
+  assert.deepEqual(parseEmail(message("topup", body)), expected);
+  assert.deepEqual(
+    parseEmail(message("topup-html", body.replaceAll("\n", "<br>"), "text/html")),
+    expected,
+  );
+  assert.deepEqual(
+    parseEmail(message("conflict", body.replace("Popolnenie scheta", "Platezh"))),
     { review_reason: "conflicting_transactions" },
   );
 });

@@ -92,6 +92,7 @@ await deliver(env);
   | `oplata`, `E-Com oplata`, `Pokupka` (purchases) | expense |
   | `Platezh` (outgoing card-to-card transfer) | expense |
   | `Perevod na kartu` (incoming transfer) | **income** |
+  | `Popolnenie scheta` (account top-up, e.g. advance salary) | **income** |
   | anything else | review item `unsupported_operation` |
 
 - **Currencies:** UZS, USD, EUR and RUB are accepted, each with 2 minor digits. Anything else becomes `unsupported_currency`.
