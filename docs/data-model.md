@@ -102,7 +102,7 @@ The indexes are `expenses_reimbursement_parent(reimbursement_expense_id)`, `expe
 
 ## Reimbursement relationships and completion
 
-Migration 0005 adds only columns, an index, and triggers. It leaves IDs, bank fields, original manual snapshots, activation/cursor, outbox jobs, update deduplication and Telegram associations intact, with no migration messages or inferred links. Existing Reimbursement rows become pending.
+Migration 0005 adds only columns, an index, and triggers. It leaves IDs, bank fields, original manual snapshots, activation/cursor, outbox jobs, update deduplication and Telegram associations intact, with no migration messages or inferred links. Existing Reimbursement rows become pending. Trigger bodies must not use `CASE … END`: D1's server-side SQL parser ends the trigger at the `END;` that closes the `CASE` and rejects the migration with `incomplete input` (SQLite itself accepts it). The guards use `SELECT RAISE(ABORT, '…') WHERE <condition>;` instead.
 
 A link requires resolved, undismissed incoming Reimbursement, a nonblank payer, and a resolved, undismissed expense with the same currency and an earlier or equal transaction time. The combined whole-payment allocations cannot exceed the parent's original amount. Triggers validate inserts and updates, including direct SQL and Telegram category writes. They reject invalidating source changes even when combined with unlinking, so unlink must be a separate save. Parent edits must keep all existing children eligible and within capacity. Capacity comparisons subtract existing allocations, excluding the source being replaced, and retain exact integer arithmetic.
 
