@@ -195,7 +195,7 @@ A transaction **needs details** (the `NEEDS_DETAILS` SQL in [`domain.ts`](../bac
 
 Manual rows count in totals and insights like any other row. Rows dated before activation are shown with an "incomplete history" note and are left out of the Month view's daily average. Manual rows are never matched or merged with a later email for the same purchase.
 
-## Reimbursement completion (FP-003 candidate, not deployed)
+## Reimbursement completion (FP-003, deployed 6 October 2026)
 
 After classifying incoming money as Reimbursement, Telegram offers **Link to expense** with the transaction selector (Mini App when configured, otherwise browser). It does not require a generic description reply. Completion requires a resolved incoming reimbursement, a trimmed nonblank payer name and one eligible expense link; the note is optional. Ordinary transactions keep their category/description completion rule.
 

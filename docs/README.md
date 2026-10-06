@@ -47,4 +47,4 @@ Mini App deployment and browser verification are recorded in [MA-08 evidence](ve
 
 If you change behaviour, update the page that describes it in the same change. Deploy records go at the end of [history.md](history.md). The other pages describe how the system works *now*, not a timeline.
 
-FP-003 reimbursement implementation is a non-deployed candidate. Start with the [verification and release checklist](verification/expense-reimbursements/ER-06.md); current code contracts are documented in the linked schema/API/frontend/lifecycle pages. Actual Telegram Web acceptance remains pending.
+FP-003 reimbursements are deployed (6 October 2026; see [history](history.md)). Start with the [verification and release checklist](verification/expense-reimbursements/ER-06.md); current code contracts are documented in the linked schema/API/frontend/lifecycle pages. Actual Telegram Web acceptance remains pending.

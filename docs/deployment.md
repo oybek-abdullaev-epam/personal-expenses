@@ -139,9 +139,9 @@ The synthetic rehearsal is `node --import tsx --test tests/mini-app-recovery.tes
 
 For live continuity evidence, compare activation exactly and confirm Gmail progress has not reset; ordinary polling may legitimately advance the cursor and change pending counts during rollout. Inspect only redacted counts, identifiers and state metadata needed to account for queued jobs/pending associations, without exporting user data. Any unexpected history loss, activation change, broken public/backend boundary, association loss or persistent sync/delivery regression stops cutover and triggers the appropriate stage recovery above. Presentation rollback never uses the maintenance Worker, mailbox-switch helper, database reset, Time Travel or queue deletion. Record actual cloud versions, observed checks, expected synthetic changes and any unverified/deferred observations separately from local rehearsal evidence.
 
-## FP-003 reimbursement release candidate (not deployed)
+## FP-003 reimbursement release (deployed 6 October 2026)
 
-ER-01–06 authorize implementation and local verification only. ER-07 still needs explicit production deployment authorization and a stated scope for synthetic live writes/messages. The implementation changes the meaning of financial reports: existing classified reimbursements stop counting as income and remain pending until named and linked. Do not infer identities or matches.
+Deployed on 6 October 2026 with this procedure; see the [history record](history.md#expense-reimbursements-fp-003-rollout--6-october-2026), including the D1 trigger-parsing incident that stalled step 4 until the migration was fixed. Synthetic live writes/messages and Telegram Web acceptance were not part of that authorization and remain pending. The implementation changes the meaning of financial reports: existing classified reimbursements stop counting as income and remain pending until named and linked. Do not infer identities or matches.
 
 Reimbursements require a coordinated cutover, superseding the ordinary migration/backend/frontend order above for this release:
 

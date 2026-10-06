@@ -14,7 +14,7 @@ This page lists every HTTP endpoint of the Cloudflare Worker, with its request a
 
 Every JSON response has `Cache-Control: no-store`.
 
-FP-003 is implemented on the feature branch and is not deployed. Financial routes (`expenses`, `totals`, `insights`) additionally require `X-Tracker-Contract: reimbursements-v1` after authentication. Missing/old versions return 409 `refresh_required` with a reload message. Health and administration keep their existing contract. The browser supplies this non-secret compatibility header; the proxy only forwards it.
+FP-003 reimbursements are deployed (6 October 2026). Financial routes (`expenses`, `totals`, `insights`) additionally require `X-Tracker-Contract: reimbursements-v1` after authentication. Missing/old versions return 409 `refresh_required` with a reload message. Health and administration keep their existing contract. The browser supplies this non-secret compatibility header; the proxy only forwards it.
 
 ## Authentication
 

@@ -13,6 +13,7 @@ The launch checklist and progress notes that used to be in this file are in [doc
 
 ## FP-003 reimbursement release gates
 
-- [ ] Authorize ER-07 production activation and a precise scope for disposable synthetic live records/messages after reviewing the [candidate and recovery checklist](docs/verification/expense-reimbursements/ER-06.md). Prior FP-002 live-test permission does not authorize FP-003 writes.
-- [ ] Run actual Telegram Web reimbursement picker/completion/navigation checks against the hosted compatible candidate, recording the observed client and capabilities. Local browser and mocked SDK evidence do not satisfy this gate.
-- [ ] Execute the coordinated pause/drain/migrate/frontend/backend/resume procedure, verify hosted access and preserved integration state, clean up only tracked synthetic artifacts, and record actual deployed versions. No deployment has occurred for FP-003.
+FP-003 was deployed on 6 October 2026 (see [history](docs/history.md)); the read-only hosted checks passed.
+
+- [ ] Authorize a precise scope for disposable synthetic live records/messages, then run actual Telegram Web reimbursement picker/completion/navigation checks against the live deployment, recording the observed client and capabilities. Local browser and mocked SDK evidence do not satisfy this gate. Prior FP-002 live-test permission does not authorize FP-003 writes.
+- [ ] Observe the first natural reimbursement receipt, the 21:00 summary and the pending legacy reimbursements being named and linked in production; clean up only tracked synthetic artifacts.
