@@ -79,11 +79,12 @@ backend/              Cloudflare Worker (TypeScript) and D1 migrations
   src/index.ts        Entry point: HTTP router and cron handler
   src/gmail.ts        Gmail OAuth refresh, polling, pagination, checkpoints
   src/parser.ts       Pure email parsing: MIME walk, UZCARD line format, review reasons
-  src/store.ts        Database helpers: saveMessage (atomic transaction + outbox), saveManual, lock, enqueue
+  src/store.ts        Database helpers: saveMessage (atomic transaction + outbox), getExpense, lock, enqueue
+  src/http.ts         The shared `json()` response helper (no-store caching)
   src/domain.ts       Shared types (Env, Expense), categories, money and Tashkent time helpers, equalSecret
   src/telegram.ts     Outbox delivery, retries, cleanup, reminders, webhook update handling
   src/api.ts          Authenticated JSON API: list/filter, totals, month insights, health, activate, create, edit
-  src/manual.ts       Validation for manually entered transactions
+  src/manual.ts       Validation (`manualDetails`) and idempotent persistence (`saveManual`) of manually entered transactions
   src/information.ts  Static /about, /privacy, /terms pages (needed for Google OAuth branding)
   src/maintenance.ts  Separate Worker entry point used only during a mailbox switch (never deployed normally)
   migrations/         D1 SQL migrations, applied in order (0001–0004)

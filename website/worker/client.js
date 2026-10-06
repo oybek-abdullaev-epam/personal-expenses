@@ -1252,6 +1252,7 @@ async function save(dismiss = false, pending = false) {
     $("editor").close();
     if (reimbursementReturn) restoreReimbursementDraft(persisted);
     else if (
+      creating &&
       edit.elements.payer_name &&
       isReimbursement(persisted) &&
       !persisted.reimbursement_expense_id
@@ -1270,6 +1271,9 @@ async function save(dismiss = false, pending = false) {
       formConflict = true;
       $("form-error").textContent =
         "Refresh the tracker to continue. Your draft remains in this open form.";
+    } else if (e.code === "unlink_first") {
+      // The draft is valid; the owner saves the unlink separately and then edits.
+      $("form-error").textContent = e.message;
     } else if (e.status === 409) {
       // A replay carries the old version, so a 409 may be our own earlier save.
       const retried = Boolean(pendingSubmission);

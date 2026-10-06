@@ -397,3 +397,37 @@ test("stale category update does not consume its deduplication ID or queue side 
     "Reimbursement",
   );
 });
+
+test("choosing another income category clears a pending payer name; Reimbursement keeps it", async (t) => {
+  const { env, sqlite, repayment } = await seed();
+  transport(t);
+  await deliver(env, now);
+  sqlite
+    .prepare("UPDATE expenses SET income_category='Reimbursement',payer_name='Ali' WHERE id=?")
+    .run(repayment);
+  const messageId = sqlite
+    .prepare(
+      "SELECT message_id FROM telegram_messages WHERE expense_id=? AND kind='expense'",
+    )
+    .get(repayment)!.message_id as number;
+  const tap = (update_id: number, index: number) =>
+    handleUpdate(
+      env,
+      {
+        update_id,
+        callback_query: {
+          id: String(update_id),
+          from: { id: 42 },
+          data: `inc:${repayment}:${index}`,
+          message: { message_id: messageId, chat },
+        },
+      },
+      now,
+    );
+  await tap(90, 1);
+  assert.equal((await getExpense(env, repayment))!.payer_name, "Ali");
+  await tap(91, 0);
+  const row = (await getExpense(env, repayment))!;
+  assert.equal(row.income_category, "Salary");
+  assert.equal(row.payer_name, "");
+});

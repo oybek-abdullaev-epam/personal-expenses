@@ -60,7 +60,8 @@ async function telegram(
     );
   return result.result;
 }
-const DAILY_SPENDING = `dismissed=0 AND review_reason IS NULL AND direction='expense' AND occurred_at>=? AND occurred_at<=?`;
+// Fully reimbursed expenses cost nothing, so they neither count nor trigger a reminder.
+const DAILY_SPENDING = `dismissed=0 AND review_reason IS NULL AND direction='expense' AND occurred_at>=? AND occurred_at<=? AND amount_minor>COALESCE((SELECT SUM(r.amount_minor) FROM expenses r WHERE r.reimbursement_expense_id=expenses.id),0)`;
 function dailyBounds(now: number) {
   return [
     new Date(`${tashkentDay(now)}T00:00:00+05:00`).toISOString(),
@@ -479,10 +480,12 @@ export async function handleUpdate(env: Env, u: Update, now = Date.now()) {
       choices[Number(m[3])]
     );
     if (valid && m) {
+      // A zero-row UPDATE (version raced) deliberately leaves the update ID unrecorded so a redelivered tap can retry.
       const result = await env.DB.batch([
         sql(
           env,
-          `UPDATE expenses SET ${item!.direction === "income" ? "income_category" : "category"}=?,version=version+1 WHERE id=? AND version=? AND reimbursement_expense_id IS NULL AND review_reason IS NULL AND dismissed=0 AND ${guard}`,
+          `UPDATE expenses SET ${item!.direction === "income" ? "income_category" : "category"}=?,payer_name=CASE WHEN ?='Reimbursement' THEN payer_name ELSE '' END,version=version+1 WHERE id=? AND version=? AND reimbursement_expense_id IS NULL AND review_reason IS NULL AND dismissed=0 AND ${guard}`,
+          choices[Number(m[3])],
           choices[Number(m[3])],
           m[2],
           item!.version,

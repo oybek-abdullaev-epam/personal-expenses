@@ -2,9 +2,9 @@
 import { createServer } from "node:http";
 import { setup, message, now, fixture } from "../tests/helpers";
 import { parseEmail } from "../backend/src/parser";
-import { getExpense, saveManual, saveMessage, sql } from "../backend/src/store";
+import { getExpense, saveMessage, sql } from "../backend/src/store";
 import { api } from "../backend/src/api";
-import { manualDetails } from "../backend/src/manual";
+import { manualDetails, saveManual } from "../backend/src/manual";
 import site from "../website/dist/server/index.js";
 const { env } = setup();
 const samples = [

@@ -1,6 +1,6 @@
 // Temporary deployment only. The normal Worker does not import this module.
 import { Env, equalSecret } from "./domain";
-import { json } from "./api";
+import { json } from "./http";
 import { sql } from "./store";
 
 export async function resetHistory(env: Env, switchedAt: number) {

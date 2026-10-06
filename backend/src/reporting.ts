@@ -8,14 +8,10 @@ import {
   type Env,
   type Expense,
 } from "./domain";
+import { json } from "./http";
 import { getExpense, sql } from "./store";
 import { isUuid } from "./telegram-links";
 
-const json = (data: unknown, status = 200) =>
-  Response.json(data, {
-    status,
-    headers: { "Cache-Control": "no-store" },
-  });
 const at =
   "COALESCE(e.occurred_at,strftime('%Y-%m-%dT%H:%M:%fZ',e.received_at/1000.0,'unixepoch'))";
 // An individual parent's allocations are constrained to its safe-integer amount.
@@ -56,8 +52,17 @@ type ProjectionRow = Expense & {
   _parent_reimbursed: string;
 };
 
+type ProjectionInput = Pick<
+  Expense,
+  | "amount_minor"
+  | "dismissed"
+  | "review_reason"
+  | "direction"
+  | "income_category"
+  | "reimbursement_expense_id"
+>;
 export function moneyProjection(
-  e: Expense,
+  e: ProjectionInput,
   reimbursed: string | bigint = "0",
 ): MoneyProjection {
   const original = BigInt(e.amount_minor ?? 0);
@@ -135,6 +140,33 @@ async function readRows(
   return result.results.map(project);
 }
 
+type AggregateRow = Pick<
+  Expense,
+  "id" | "currency" | "category" | "occurred_at"
+> &
+  ProjectionInput &
+  MoneyProjection;
+// Totals and insights need no parent context, so read only the columns they use.
+async function readAggregateRows(
+  env: Env,
+  where: string,
+  values: (string | number)[],
+  suffix: string,
+) {
+  const result = await sql(
+    env,
+    `SELECT e.id,e.currency,e.category,e.income_category,e.occurred_at,e.amount_minor,
+    e.dismissed,e.review_reason,e.direction,e.reimbursement_expense_id,
+    CASE WHEN e.direction='expense' THEN CAST(${allocated("e")} AS TEXT) ELSE '0' END AS _reimbursed
+    FROM expenses e WHERE ${where} ${suffix}`,
+    ...values,
+  ).all<AggregateRow & { _reimbursed: string }>();
+  return result.results.map(({ _reimbursed, ...row }): AggregateRow => ({
+    ...row,
+    ...moneyProjection(row, _reimbursed),
+  }));
+}
+
 /** Shared read boundary for API writes and daily summaries; bounded bulk queries. */
 export async function projectExpenses(
   env: Env,
@@ -172,6 +204,7 @@ function filters(url: URL) {
   if (c && !category(c) && !incomeCategory(c)) throw Error("Invalid category");
   if (direction && direction !== "expense" && direction !== "income")
     throw Error("Invalid direction");
+  // The Reimbursement category overrides direction (CONTRACTS.md), so a direction filter is intentionally ignored here.
   if (c === "Reimbursement")
     parts.push("e.direction='income' AND e.income_category='Reimbursement'");
   else {
@@ -310,7 +343,7 @@ async function relationshipRead(
 }
 type Sum = { spending: bigint; income: bigint; pending: bigint };
 const sum = (): Sum => ({ spending: 0n, income: 0n, pending: 0n });
-function add(total: Sum, row: ProjectedExpense) {
+function add(total: Sum, row: AggregateRow) {
   total.spending += BigInt(row.personal_spending_minor);
   total.pending += BigInt(row.pending_reimbursement_minor);
   if (row.direction === "income" && !isReimbursement(row))
@@ -319,7 +352,7 @@ function add(total: Sum, row: ProjectedExpense) {
 async function* scan(env: Env, where: string, values: (string | number)[]) {
   let last = "";
   while (true) {
-    const rows = await readRows(
+    const rows = await readAggregateRows(
       env,
       `${where} AND e.review_reason IS NULL AND e.id>?`,
       [...values, last],

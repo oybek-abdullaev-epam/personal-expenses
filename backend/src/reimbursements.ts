@@ -146,6 +146,30 @@ export async function updateExpense(
         "version_conflict",
       );
   } catch (e) {
+    const financial = [
+      "amount_minor",
+      "currency",
+      "occurred_at",
+      "direction",
+      "income_category",
+      "category",
+    ];
+    if (
+      (e as Error).message?.includes("reimbursement_conflict") &&
+      existing.reimbursement_expense_id &&
+      nextLink &&
+      nextLink[1] !== existing.reimbursement_expense_id &&
+      entries.some(
+        ([key, value]) =>
+          financial.includes(key) &&
+          value !== (existing as unknown as Record<string, unknown>)[key],
+      )
+    )
+      throw new MutationError(
+        "Save the unlink or new link on its own before changing the amount, currency, date or category.",
+        409,
+        "unlink_first",
+      );
     translateMutationError(e);
   }
   return getExpense(env, existing.id);

@@ -637,3 +637,41 @@ test("searching after clearing a persisted link keeps the draft unlinked", async
   );
   assert.equal(h.nodes.save.textContent, "Save pending");
 });
+
+test("saving an existing pending reimbursement closes the editor without reopening the picker", async () => {
+  const h = harness();
+  h.context.openEditor(repayment);
+  await tick();
+  const before = h.calls.length;
+  await h.context.save();
+  await tick();
+  const after = h.calls.slice(before);
+  assert.ok(after.some((c) => c.options.method === "PATCH"));
+  assert.equal(h.nodes.editor.open, false);
+  assert.ok(!after.some((c) => c.path.includes("reimbursement-candidates")));
+});
+
+test("unlink_first shows its message and leaves the form editable without a conflict", async () => {
+  const linked = {
+    ...repayment,
+    payer_name: "Ali",
+    reimbursement_expense_id: parentId,
+    reimbursement_expense: parent,
+    parent_versions: { [parentId]: 3 },
+  };
+  const message = "Save the unlink or new link on its own first.";
+  const h = harness((path, options) =>
+    options.method
+      ? Response.json({ error: message, code: "unlink_first" }, { status: 409 })
+      : path.includes("reimbursement-candidates")
+        ? { expenses: [parent], nextCursor: null }
+        : linked,
+  );
+  h.context.openEditor(linked);
+  await tick();
+  await h.context.save();
+  await tick();
+  assert.equal(h.nodes["form-error"].textContent, message);
+  assert.equal(h.nodes.editor.open, true);
+  assert.equal(h.context.inspect().formConflict, false);
+});

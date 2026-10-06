@@ -1,4 +1,5 @@
-import { api, json } from "./api";
+import { api } from "./api";
+import { json } from "./http";
 import { Env, equalSecret } from "./domain";
 import { pollGmail } from "./gmail";
 import { information } from "./information";

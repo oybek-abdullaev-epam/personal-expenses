@@ -195,3 +195,37 @@ test("summary totals remain exact above safe integers and across query pages", a
   await deliver(env, evening);
   assert.match(text, /90,162,064,539,957,309\.90 UZS · 1001 expenses/);
 });
+
+test("fully reimbursed expenses neither trigger the summary nor count; partial ones use their adjusted cost", async (t) => {
+  const repay = (db: Database, amount: number) =>
+    transaction(db, "repayment", {
+      occurred_at: "2026-09-30T08:00:00.000Z",
+      amount_minor: amount,
+      direction: "income",
+      category: null,
+      income_category: "Reimbursement",
+      payer_name: "Ali",
+      reimbursement_expense_id: "dinner",
+    });
+  const full = setup();
+  transaction(full.sqlite, "dinner", { amount_minor: 9000000 });
+  repay(full.sqlite, 9000000);
+  await reminder(full.env, evening);
+  assert.equal(
+    full.sqlite.prepare("SELECT COUNT(*) AS n FROM outbox").get()!.n,
+    0,
+  );
+
+  const partial = setup();
+  transaction(partial.sqlite, "dinner", { amount_minor: 9000000 });
+  repay(partial.sqlite, 4000000);
+  await reminder(partial.env, evening);
+  const texts: string[] = [];
+  t.mock.method(globalThis, "fetch", async (_url, options) => {
+    texts.push(JSON.parse(String(options!.body)).text);
+    return success();
+  });
+  await deliver(partial.env, evening);
+  assert.equal(texts.length, 1);
+  assert.match(texts[0], /50,000\.00 UZS · 1 expense\b/);
+});

@@ -10,16 +10,15 @@ import {
   tashkentDay,
 } from "./domain";
 import { financialRead, projectExpenses } from "./reporting";
-import { manualDetails } from "./manual";
+import { json } from "./http";
+import { manualDetails, saveManual } from "./manual";
 import { isUuid } from "./telegram-links";
-import { getExpense, saveManual, sql } from "./store";
+import { getExpense, sql } from "./store";
 import {
   MutationError,
   reimbursementFields,
   updateExpense,
 } from "./reimbursements";
-export const json = (data: unknown, status = 200) =>
-  Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 async function transactionJson(env: Env, expense: Expense | null, status = 200) {
   return expense ? json((await projectExpenses(env, [expense]))[0], status) : json({ error: "Not found" }, 404);
 }
@@ -153,8 +152,7 @@ export async function api(
         throw e;
       }
     }
-    const fields: string[] = [],
-      values: (string | number | null)[] = [];
+    const entries: [string, string | number | null][] = [];
     let direction = existing.direction;
     if (body.resolve && existing.review_reason) {
       const requested = (body.resolve as Record<string, unknown>).direction;
@@ -165,8 +163,7 @@ export async function api(
       )
         return json({ error: "Invalid direction" }, 400);
       direction = requested === "income" ? "income" : "expense";
-      fields.push("direction=?");
-      values.push(direction);
+      entries.push(["direction", direction]);
     }
     if ("income_category" in body) {
       if (
@@ -174,8 +171,7 @@ export async function api(
         (body.income_category !== null && !incomeCategory(body.income_category))
       )
         return json({ error: "Invalid income category" }, 400);
-      fields.push("income_category=?");
-      values.push(body.income_category as string | null);
+      entries.push(["income_category", body.income_category as string | null]);
     }
     if ("category" in body) {
       if (
@@ -183,8 +179,7 @@ export async function api(
         (direction !== "expense" || !category(body.category))
       )
         return json({ error: "Invalid category" }, 400);
-      fields.push("category=?");
-      values.push(body.category as string | null);
+      entries.push(["category", body.category as string | null]);
     }
     if ("description" in body) {
       if (
@@ -195,21 +190,36 @@ export async function api(
           { error: "Description must be at most 500 characters" },
           400,
         );
-      fields.push("description=?");
-      values.push(body.description.trim());
+      entries.push(["description", body.description.trim()]);
     }
     try {
-      for (const [key, value] of Object.entries(reimbursementFields(body))) {
-        fields.push(`${key}=?`);
-        values.push(value);
-      }
+      const metadata = reimbursementFields(body);
+      const reimbursement =
+        direction === "income" &&
+        ("income_category" in body
+          ? body.income_category
+          : existing.income_category) === "Reimbursement";
+      if (
+        !reimbursement &&
+        (metadata.payer_name || metadata.reimbursement_expense_id)
+      )
+        throw new MutationError(
+          "Reimbursement details require the Reimbursement category.",
+          400,
+          "invalid_reimbursement",
+        );
+      // A name never outlives the Reimbursement category; linked rows are blocked by the trigger.
+      if (!reimbursement && !("payer_name" in metadata) && existing.payer_name)
+        metadata.payer_name = "";
+      for (const entry of Object.entries(metadata))
+        entries.push(entry as [string, string | null]);
     } catch (e) {
       if (e instanceof MutationError)
         return json({ error: e.message, code: e.code }, e.status);
       throw e;
     }
     if (body.dismiss === true && existing.review_reason) {
-      fields.push("dismissed=1");
+      entries.push(["dismissed", 1]);
     }
     if (body.resolve && existing.review_reason) {
       try {
@@ -222,40 +232,19 @@ export async function api(
           !["UZS", "USD", "EUR", "RUB"].includes(r.currency)
         )
           throw Error();
-        fields.push(
-          "merchant=?",
-          "card_suffix=?",
-          "currency=?",
-          "amount_minor=?",
-          "occurred_at=?",
-          "review_reason=NULL",
-        );
-        values.push(
-          r.merchant.trim(),
-          r.card_suffix,
-          r.currency,
-          money(r.amount),
-          localDateTime(r.local_time),
+        entries.push(
+          ["merchant", r.merchant.trim()],
+          ["card_suffix", r.card_suffix],
+          ["currency", r.currency],
+          ["amount_minor", money(r.amount)],
+          ["occurred_at", localDateTime(r.local_time)],
+          ["review_reason", null],
         );
       } catch {
         return json({ error: "Invalid review details" }, 400);
       }
     }
-    if (!fields.length) return json({ error: "No changes supplied" }, 400);
-    // Convert validated partial fields into one conditional mutation. Literal
-    // reset fields are represented as values too, so all paths use the same guards.
-    let index = 0;
-    const entries = fields.map((field): [string, string | number | null] => {
-      const [key, value] = field.split("=");
-      return [
-        key,
-        value === "?"
-          ? values[index++]
-          : value === "NULL"
-            ? null
-            : Number(value),
-      ];
-    });
+    if (!entries.length) return json({ error: "No changes supplied" }, 400);
     try {
       return transactionJson(
         env, await updateExpense(

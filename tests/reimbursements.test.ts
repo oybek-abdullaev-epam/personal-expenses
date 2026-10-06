@@ -698,3 +698,96 @@ test("capacity arithmetic remains exact at the maximum safe amount and direct wr
     null,
   );
 });
+
+test("payer details need the Reimbursement category on email rows and leave with it", async () => {
+  const { env, sqlite } = setup();
+  const parent = await create(env, details());
+  const id = uuid();
+  await sql(
+    env,
+    "INSERT INTO expenses(id,source_message_id,received_at,occurred_at,merchant,card_suffix,amount_minor,currency,direction) VALUES (?,?,?,'2026-10-01T14:00:00.000Z','Synthetic shop','1234',5000,'UZS','expense')",
+    id,
+    `synthetic-${id}`,
+    now,
+  ).run();
+  const ordinary = (await getExpense(env, id))!;
+  for (const body of [
+    { payer_name: "Ali" },
+    {
+      reimbursement_expense_id: parent.id,
+      parent_versions: { [parent.id]: 0 },
+    },
+  ]) {
+    const response = await patch(env, ordinary, body);
+    assert.equal(response.status, 400);
+    assert.equal(
+      ((await response.json()) as any).code,
+      "invalid_reimbursement",
+    );
+  }
+  assert.equal((await getExpense(env, id))!.payer_name, "");
+
+  let pending = await emailReimbursement(env);
+  let response = await patch(env, pending, { payer_name: "Ali" });
+  assert.equal(response.status, 200);
+  pending = (await response.json()) as Expense;
+  assert.equal(pending.payer_name, "Ali");
+  response = await patch(env, pending, { income_category: "Salary" });
+  assert.equal(response.status, 200);
+  assert.equal(((await response.json()) as Expense).payer_name, "");
+  assert.equal(
+    (
+      sqlite
+        .prepare("SELECT payer_name FROM expenses WHERE id=?")
+        .get(pending.id) as { payer_name: string }
+    ).payer_name,
+    "",
+  );
+});
+
+test("a relink combined with a financial edit asks for a separate save", async () => {
+  const { env } = setup();
+  const first = await create(env, details());
+  const second = await create(env, details({ amount: "500" }));
+  const small = await create(env, details({ amount: "50" }));
+  const body = repayment();
+  const r = await create(env, {
+    ...body,
+    payer_name: "Sara",
+    reimbursement_expense_id: first.id,
+    parent_versions: { [first.id]: 0 },
+  });
+  let response = await manualPatch(env, r, body, {
+    amount: "400",
+    payer_name: "Sara",
+    reimbursement_expense_id: second.id,
+    parent_versions: { [first.id]: 1, [second.id]: 0 },
+  });
+  assert.equal(response.status, 409);
+  assert.equal(((await response.json()) as any).code, "unlink_first");
+  response = await manualPatch(env, r, body, {
+    payer_name: "Sara",
+    reimbursement_expense_id: small.id,
+    parent_versions: { [first.id]: 1, [small.id]: 0 },
+  });
+  assert.equal(response.status, 409);
+  assert.equal(((await response.json()) as any).code, "reimbursement_conflict");
+  response = await manualPatch(env, r, body, {
+    payer_name: "Sara",
+    reimbursement_expense_id: null,
+    parent_versions: { [first.id]: 1 },
+  });
+  assert.equal(response.status, 200);
+  const unlinked = (await response.json()) as Expense;
+  response = await manualPatch(env, unlinked, body, {
+    amount: "400",
+    payer_name: "Sara",
+    reimbursement_expense_id: second.id,
+    parent_versions: { [second.id]: 0 },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(
+    ((await response.json()) as Expense).reimbursement_expense_id,
+    second.id,
+  );
+});
