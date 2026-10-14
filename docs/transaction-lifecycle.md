@@ -91,6 +91,7 @@ await deliver(env);
   |---|---|
   | `oplata`, `E-Com oplata`, `Pokupka` (purchases) | expense |
   | `Platezh` (outgoing card-to-card transfer) | expense |
+  | `Spisanie c karty` (debit from the card) | expense |
   | `Perevod na kartu` (incoming transfer) | **income** |
   | `Popolnenie scheta` (account top-up, e.g. advance salary) | **income** |
   | anything else | review item `unsupported_operation` |

@@ -26,6 +26,7 @@ These are the words used in the code, the UI and these docs. The product terms c
 | `E-Com oplata` | Online payment | Spending |
 | `Pokupka` | Purchase | Spending |
 | `Platezh` | Outgoing card-to-card transfer | Spending |
+| `Spisanie c karty` | Debit from the card | Spending |
 | `Perevod na kartu` | Transfer to the card (incoming) | Income |
 | `Popolnenie scheta` | Account top-up (incoming) | Income |
 | anything else | – | Review item (`unsupported_operation`) |

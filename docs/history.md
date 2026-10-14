@@ -282,3 +282,11 @@ An email received on 5 October 2026 (about 10:03Z) reached Telegram as an `unsup
 Backend redeployed as Worker version `6fa034fb-8cdb-420c-83a9-529f5a1c01f4` with no migrations. Smoke checks: `/api/expenses` 401, `GET /telegram/webhook` 405, `/about`, `/privacy`, `/terms` 200, dashboard `/api/health` 200 with no sync error and no pending or failed notifications. Secrets, activation and history were untouched.
 
 The existing review row (`27c3da13…`, version 0) was resolved in place through the version-checked `resolve` PATCH using values re-parsed from the original Gmail message, so its expense ID and Gmail source ID were preserved (now income, version 1). The resolve queued no new Telegram prompt; its income category and description are set on the dashboard.
+
+## `Spisanie c karty` expense support — 14 October 2026
+
+An email received on 14 October 2026 (about 07:15Z) reached Telegram as an `unsupported_operation` review item. Its observed label, read from the original Gmail message (label and currency only), was `Spisanie c karty` (a debit from the card); the rest matched the strict line format and both language copies agreed. The owner confirmed it is an expense, so `parseEmail()` now stores `Spisanie c karty` as `direction = expense`. A synthetic regression test covers text, HTML and a conflicting-copy case. 144 tests, typecheck and the wrangler dry-run pass.
+
+Backend redeployed as Worker version `e513174f-8745-490b-b1b2-e2a76f18157f` with no migrations (none pending). Smoke checks: `/api/expenses` 401, `GET /telegram/webhook` 405, `/about`, `/privacy`, `/terms` 200, dashboard `/api/health` 200 with no sync error and no pending or failed notifications. Secrets, activation and history were untouched.
+
+The existing review row (`91cc1664…`, version 0) was resolved in place through the version-checked `resolve` PATCH using values re-parsed from the original Gmail message, so its expense ID and Gmail source ID were preserved (now an expense, version 1, 200 response). The resolve queued no new Telegram prompt; its category and description are set on the dashboard.

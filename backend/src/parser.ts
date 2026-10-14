@@ -89,6 +89,7 @@ export function parseEmail(message: GmailMessage): Parsed {
           "platezh",
           "perevod na kartu",
           "popolnenie scheta",
+          "spisanie c karty",
         ].includes(m[1].trim().toLowerCase())
       )
         throw new Error("unsupported_operation");

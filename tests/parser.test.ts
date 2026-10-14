@@ -175,6 +175,29 @@ test("Popolnenie scheta account top-ups parse as income in text and HTML", async
   );
 });
 
+test("Spisanie c karty card debits parse as expenses in text and HTML", () => {
+  const line =
+    "Spisanie c karty: SAMPLE SHOP, UZ 14.10.26 12:15, karta ***1234. summa:100.00 UZS, balans:200.00 UZS";
+  const expected = {
+    direction: "expense",
+    merchant: "SAMPLE SHOP, UZ",
+    occurred_at: "2026-10-14T07:15:00.000Z",
+    card_suffix: "1234",
+    amount_minor: 10000,
+    currency: "UZS",
+  };
+  const body = [line, line].join("\n");
+  assert.deepEqual(parseEmail(message("debit", body)), expected);
+  assert.deepEqual(
+    parseEmail(message("debit-html", body.replaceAll("\n", "<br>"), "text/html")),
+    expected,
+  );
+  assert.deepEqual(
+    parseEmail(message("conflict", line + "\n" + line.replace("Spisanie c karty", "Perevod na kartu"))),
+    { review_reason: "conflicting_transactions" },
+  );
+});
+
 test("Pokupka purchases accept both comma variants in plain text and HTML", () => {
   const expected = {
     direction: "expense",
